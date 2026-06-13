@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -14,7 +15,6 @@ import (
 	"react-example/backend-golang/repository/mysql"
 	"react-example/backend-golang/routes"
 	"react-example/backend-golang/usecase"
-	"go.uber.org/zap"
 )
 
 // corsMiddleware establishes access controls so React frontend browsers can communicate seamlessly
@@ -34,19 +34,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
-	// Initialize structured logger with 5 days rotation
-	logger := config.InitLogger(config.LoggerConfig{
-		LogPath:    "app.log",
-		MaxAgeDays: 5,
-	})
-	defer logger.Sync()
-
-	logger.Info("[IAM-CORE] Bootstrapping Identity Governance Suite via Clean Architecture...")
+	log.Println("[IAM-CORE] Bootstrapping Identity Governance Suite via Clean Architecture...")
 
 	// 1. Establish MySQL RDBMS Connection pool
 	db := config.InitDB()
 	defer func() {
-		logger.Info("[IAM-CORE] Terminating MySQL database pool connection...")
+		log.Println("[IAM-CORE] Terminating MySQL database pool connection...")
 		db.Close()
 	}()
 
@@ -81,7 +74,7 @@ func main() {
 
 	// Direct server listener instantiation in a background thread
 	go func() {
-		logger.Info("[IAM-CORE] Service listening dynamically", zap.String("port", port))
+		log.Printf("[IAM-CORE] Service listening dynamically at http://0.0.0.0:%s", port)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErrors <- err
 		}
@@ -94,17 +87,17 @@ func main() {
 	// Block main thread until signal notification or critical bind error returns
 	select {
 	case err := <-serverErrors:
-		logger.Fatal("[IAM-CORE] CRITICAL: Server crashed during runtime bind", zap.Error(err))
+		log.Fatalf("[IAM-CORE] CRITICAL: Server crashed during runtime bind: %v", err)
 
 	case sig := <-shutdownSignal:
-		logger.Info("[IAM-CORE] Received signal, commencing graceful shutdown routine...", zap.String("signal", sig.String()))
+		log.Printf("[IAM-CORE] Received signal %v, commencing graceful shutdown routine...", sig)
 
 		// Enforce a maximum context timeout threshold of 15 seconds for outstanding client request drainage
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
-			logger.Error("[IAM-CORE] Graceful server drainage failed, forcing termination", zap.Error(err))
+			log.Printf("[IAM-CORE] Graceful server drainage failed, forcing termination: %v", err)
 			_ = srv.Close()
 		}
 	}
