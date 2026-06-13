@@ -1,0 +1,6 @@
+{
+  "name": "FolksArt IAM Governance",
+  "description": "Enterprise-grade IAM Identity Governance Suite for Subject Principals, audit logging, and KYC compliance tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
