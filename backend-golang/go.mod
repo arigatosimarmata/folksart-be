@@ -3,11 +3,17 @@ module react-example/backend-golang
 go 1.21
 
 require (
+	github.com/go-playground/validator/v10 v10.16.0
 	github.com/go-sql-driver/mysql v1.7.1
+	github.com/gofiber/fiber/v2 v2.51.0
+	github.com/gofiber/swagger v0.1.14
+	github.com/golang-jwt/jwt/v5 v5.2.0
 	github.com/golang-migrate/migrate/v4 v4.16.2
 	github.com/robfig/cron/v3 v3.0.1
 	github.com/spf13/cobra v1.8.0
+	github.com/swaggo/swag v1.16.2
 	github.com/spf13/viper v1.17.0
+	golang.org/x/crypto v0.15.0
 )
 
 require (

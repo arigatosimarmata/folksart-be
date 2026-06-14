@@ -1,10 +1,9 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
 	"strings"
 
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -18,15 +17,25 @@ func NewAuthHandler(au domain.AuthUsecase) *AuthHandler {
 	return &AuthHandler{authUsecase: au}
 }
 
-func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) error {
+// Login godoc
+// @Summary Authenticate principal
+// @Description Log in with email and password to receive a JWT access token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.LoginRequest true "Login Credentials"
+// @Success 200 {object} httputil.Response{data=dto.TokenResponse}
+// @Failure 401 {object} httputil.Response
+// @Router /auth/login [post]
+func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.authUsecase.Login(r.Context(), req.Email, req.Password)
+	resp, err := h.authUsecase.Login(c.Context(), req.Email, req.Password)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	dtoResp := dto.TokenResponse{
@@ -50,26 +59,42 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 
-	httputil.WriteSuccessResponse(w, "Login successful", dtoResp, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Login successful", dtoResp, nil)
 }
 
-func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) error {
-	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	err := h.authUsecase.Logout(r.Context(), token)
+// Logout godoc
+// @Summary Terminate session
+// @Description Invalidate the current access token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} httputil.Response
+// @Security ApiKeyAuth
+// @Router /auth/logout [post]
+func (h *AuthHandler) Logout(c *fiber.Ctx) error {
+	token := strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
+	err := h.authUsecase.Logout(c.Context(), token)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Logout successful", nil, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Logout successful", nil, nil)
 }
 
-func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) error {
-	token := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	user, err := h.authUsecase.Me(r.Context(), token)
+// Me godoc
+// @Summary Get current principal info
+// @Description Retrieve details of the currently authenticated user
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Success 200 {object} httputil.Response{data=dto.UserResponse}
+// @Security ApiKeyAuth
+// @Router /auth/me [get]
+func (h *AuthHandler) Me(c *fiber.Ctx) error {
+	token := strings.TrimPrefix(c.Get("Authorization"), "Bearer ")
+	user, err := h.authUsecase.Me(c.Context(), token)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.UserResponse{
@@ -85,14 +110,13 @@ func (h *AuthHandler) Me(w http.ResponseWriter, r *http.Request) error {
 		CreatedAt:  user.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", res, nil)
 }
 
-func (h *AuthHandler) Sessions(w http.ResponseWriter, r *http.Request) error {
-	sessions, err := h.authUsecase.GetSessions(r.Context(), "usr_current")
+func (h *AuthHandler) Sessions(c *fiber.Ctx) error {
+	sessions, err := h.authUsecase.GetSessions(c.Context(), "usr_current")
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	dtoSessions := make([]dto.SessionResponse, 0)
@@ -108,24 +132,21 @@ func (h *AuthHandler) Sessions(w http.ResponseWriter, r *http.Request) error {
 		})
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", dtoSessions, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", dtoSessions, nil)
 }
 
-func (h *AuthHandler) InternalToken(w http.ResponseWriter, r *http.Request) error {
-	httputil.WriteSuccessResponse(w, "Internal token generated", map[string]interface{}{
+func (h *AuthHandler) InternalToken(c *fiber.Ctx) error {
+	return httputil.WriteSuccessResponse(c, "Internal token generated", map[string]interface{}{
 		"access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
 		"token_type":   "Bearer",
 		"expires_in":   3600,
 		"issued_to":    "reporting-service",
 	}, nil)
-	return nil
 }
 
-func (h *AuthHandler) VerifyInternalToken(w http.ResponseWriter, r *http.Request) error {
-	httputil.WriteSuccessResponse(w, "Token verified", map[string]interface{}{
+func (h *AuthHandler) VerifyInternalToken(c *fiber.Ctx) error {
+	return httputil.WriteSuccessResponse(c, "Token verified", map[string]interface{}{
 		"valid":     true,
 		"issued_to": "reporting-service",
 	}, nil)
-	return nil
 }

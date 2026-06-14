@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-	"strings"
-
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -18,10 +15,10 @@ func NewRoleHandler(ru domain.RoleUsecase) *RoleHandler {
 	return &RoleHandler{roleUsecase: ru}
 }
 
-func (h *RoleHandler) ListRoles(w http.ResponseWriter, r *http.Request) error {
-	roles, err := h.roleUsecase.ListRoles(r.Context())
+func (h *RoleHandler) ListRoles(c *fiber.Ctx) error {
+	roles, err := h.roleUsecase.ListRoles(c.Context())
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	roleDtos := make([]dto.RoleResponse, 0)
@@ -35,23 +32,22 @@ func (h *RoleHandler) ListRoles(w http.ResponseWriter, r *http.Request) error {
 		})
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", roleDtos, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", roleDtos, nil)
 }
 
-func (h *RoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) error {
+func (h *RoleHandler) CreateRole(c *fiber.Ctx) error {
 	var req dto.CreateRoleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	newRole, err := h.roleUsecase.CreateRole(r.Context(), domain.Role{
+	newRole, err := h.roleUsecase.CreateRole(c.Context(), domain.Role{
 		Name:        req.Name,
 		Description: req.Description,
 		Permissions: req.Permissions,
 	})
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.RoleResponse{
@@ -62,14 +58,13 @@ func (h *RoleHandler) CreateRole(w http.ResponseWriter, r *http.Request) error {
 		UserCount:   newRole.UserCount,
 	}
 
-	httputil.WriteSuccessResponse(w, "Role created successfully", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Role created successfully", res, nil)
 }
 
-func (h *RoleHandler) ListPermissions(w http.ResponseWriter, r *http.Request) error {
-	perms, err := h.roleUsecase.ListPermissions(r.Context())
+func (h *RoleHandler) ListPermissions(c *fiber.Ctx) error {
+	perms, err := h.roleUsecase.ListPermissions(c.Context())
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	permDtos := make([]dto.PermissionResponse, 0)
@@ -81,28 +76,24 @@ func (h *RoleHandler) ListPermissions(w http.ResponseWriter, r *http.Request) er
 		})
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", permDtos, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", permDtos, nil)
 }
 
-func (h *RoleHandler) AssignUserRole(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing user ID")
-		return nil
+func (h *RoleHandler) AssignUserRole(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	userID := pathParts[4]
 
 	var req dto.AssignRoleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	err := h.roleUsecase.AssignRole(r.Context(), userID, req.RoleID, req.Operator)
+	err := h.roleUsecase.AssignRole(c.Context(), userID, req.RoleID, req.Operator)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Role assigned successfully", nil, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Role assigned successfully", nil, nil)
 }

@@ -1,10 +1,9 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
 	"strconv"
 
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -18,21 +17,18 @@ func NewAuditHandler(au domain.AuditUsecase) *AuditHandler {
 	return &AuditHandler{auditUsecase: au}
 }
 
-func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-	severity := r.URL.Query().Get("severity")
-	limitStr := r.URL.Query().Get("limit")
+func (h *AuditHandler) ListAuditLogs(c *fiber.Ctx) error {
+	severity := c.Query("severity")
+	limitStr := c.Query("limit", "50")
 
-	limit := 50
-	if limitStr != "" {
-		if val, err := strconv.Atoi(limitStr); err == nil && val > 0 {
-			limit = val
-		}
+	limit, _ := strconv.Atoi(limitStr)
+	if limit <= 0 {
+		limit = 50
 	}
 
-	logs, err := h.auditUsecase.GetAuditTrail(ctx, severity, limit)
+	logs, err := h.auditUsecase.GetAuditTrail(c.Context(), severity, limit)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	logDtos := make([]dto.AuditLogResponse, 0)
@@ -47,23 +43,21 @@ func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) err
 		})
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", logDtos, map[string]interface{}{
+	return httputil.WriteSuccessResponse(c, "Success", logDtos, map[string]interface{}{
 		"limit": limit,
 		"total": len(logDtos),
 	})
-	return nil
 }
 
-func (h *AuditHandler) CreateLog(w http.ResponseWriter, r *http.Request) error {
+func (h *AuditHandler) CreateLog(c *fiber.Ctx) error {
 	var req dto.CreateAuditLogRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	ctx := r.Context()
-	newLog, err := h.auditUsecase.RecordAction(ctx, req.Actor, req.Action, req.Target, req.Severity)
+	newLog, err := h.auditUsecase.RecordAction(c.Context(), req.Actor, req.Action, req.Target, req.Severity)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.AuditLogResponse{
@@ -75,16 +69,14 @@ func (h *AuditHandler) CreateLog(w http.ResponseWriter, r *http.Request) error {
 		Severity:  newLog.Severity,
 	}
 
-	httputil.WriteSuccessResponse(w, "Audit log created successfully", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Audit log created successfully", res, nil)
 }
 
-func (h *AuditHandler) SignLogs(w http.ResponseWriter, r *http.Request) error {
-	httputil.WriteSuccessResponse(w, "Logs signed successfully", map[string]interface{}{
+func (h *AuditHandler) SignLogs(c *fiber.Ctx) error {
+	return httputil.WriteSuccessResponse(c, "Logs signed successfully", map[string]interface{}{
 		"signed_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
 		"algorithm":    "RS256",
 		"checksum":     "sha256:a1b2c3d4e5f6...",
 		"signed_at":    "2025-06-10T14:00:00Z",
 	}, nil)
-	return nil
 }

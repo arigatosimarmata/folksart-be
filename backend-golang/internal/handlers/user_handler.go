@@ -1,11 +1,9 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/errs"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
@@ -21,22 +19,26 @@ func NewUserHandler(uu domain.UserUsecase) *UserHandler {
 	return &UserHandler{userUsecase: uu}
 }
 
-func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) error {
-	ctx := r.Context()
-
-	search := r.URL.Query().Get("search")
-	role := r.URL.Query().Get("role")
-	status := r.URL.Query().Get("status")
-	department := r.URL.Query().Get("department")
-	pageStr := r.URL.Query().Get("page")
-	limitStr := r.URL.Query().Get("limit")
-
-	if pageStr == "" {
-		pageStr = "1"
-	}
-	if limitStr == "" {
-		limitStr = "10"
-	}
+// ListUsers godoc
+// @Summary List all users with filtering
+// @Description Get a paginated list of users with search and filter options
+// @Tags Identity
+// @Accept json
+// @Produce json
+// @Param search query string false "Search by name or email"
+// @Param role query string false "Filter by role"
+// @Param status query string false "Filter by status"
+// @Param page query int false "Page number" default(1)
+// @Param limit query int false "Page size" default(10)
+// @Success 200 {object} httputil.Response{data=[]dto.UserResponse}
+// @Router /users [get]
+func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
+	search := c.Query("search")
+	role := c.Query("role")
+	status := c.Query("status")
+	department := c.Query("department")
+	pageStr := c.Query("page", "1")
+	limitStr := c.Query("limit", "10")
 
 	page, _ := strconv.Atoi(pageStr)
 	limit, _ := strconv.Atoi(limitStr)
@@ -51,9 +53,9 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) error {
 		Offset:     offset,
 	}
 
-	users, total, err := h.userUsecase.FetchDirectories(ctx, filter)
+	users, total, err := h.userUsecase.FetchDirectories(c.Context(), filter)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	userDtos := make([]dto.UserResponse, 0)
@@ -74,33 +76,38 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) error {
 
 	totalPages := (total + limit - 1) / limit
 
-	httputil.WriteSuccessResponse(w, "Success", userDtos, map[string]interface{}{
+	return httputil.WriteSuccessResponse(c, "Success", userDtos, map[string]interface{}{
 		"total": total,
 		"page":  page,
 		"limit": limit,
 		"pages": totalPages,
 	})
-	return nil
 }
 
-func (h *UserHandler) EnrollUser(w http.ResponseWriter, r *http.Request) error {
+// EnrollUser godoc
+// @Summary Enroll a new principal
+// @Description Create a new user identity in the system
+// @Tags Identity
+// @Accept json
+// @Produce json
+// @Param request body dto.EnrollUserRequest true "User Enrollment Data"
+// @Success 201 {object} httputil.Response{data=dto.UserResponse}
+// @Failure 400 {object} httputil.Response
+// @Security ApiKeyAuth
+// @Router /users [post]
+func (h *UserHandler) EnrollUser(c *fiber.Ctx) error {
 	var req dto.EnrollUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return errs.ErrBadRequest
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, errs.ErrBadRequest)
 	}
 
-	// 1. Centralized Validation
 	if validationErrors := validation.ValidateStruct(req); len(validationErrors) > 0 {
-		httputil.WriteValidationErrorResponse(w, validationErrors)
-		return nil
+		return httputil.WriteValidationErrorResponse(c, validationErrors)
 	}
 
-	ctx := r.Context()
-	newUser, err := h.userUsecase.EnrollPrincipal(ctx, req.Name, req.Email, req.Role, req.Department, req.Operator)
+	newUser, err := h.userUsecase.EnrollPrincipal(c.Context(), req.Name, req.Email, req.Role, req.Department, req.Operator)
 	if err != nil {
-		// 2. Automated Error Translation via httputil
-		httputil.WriteErrorResponse(w, err)
-		return nil
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.UserResponse{
@@ -116,27 +123,34 @@ func (h *UserHandler) EnrollUser(w http.ResponseWriter, r *http.Request) error {
 		CreatedAt:  newUser.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	httputil.WriteSuccessResponse(w, "User enrolled successfully", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "User enrolled successfully", res, nil)
 }
 
-func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 || pathParts[4] == "" {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing user ID")
-		return nil
+// UpdateUser godoc
+// @Summary Update principal attributes
+// @Description Patch specific fields of a user identity
+// @Tags Identity
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param request body dto.UpdateUserRequest true "Update Data"
+// @Success 200 {object} httputil.Response{data=dto.UserResponse}
+// @Security ApiKeyAuth
+// @Router /users/{id} [patch]
+func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return httputil.WriteErrorResponse(c, errs.ErrBadRequest)
 	}
-	userID := pathParts[4]
 
 	var req dto.UpdateUserRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, errs.ErrBadRequest)
 	}
 
-	ctx := r.Context()
-	patchedUser, err := h.userUsecase.PatchPrincipal(ctx, userID, req.Status, req.KYCStatus, req.RiskScore, req.MFAEnabled, req.Operator)
+	patchedUser, err := h.userUsecase.PatchPrincipal(c.Context(), userID, req.Status, req.KYCStatus, req.RiskScore, req.MFAEnabled, req.Operator)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.UserResponse{
@@ -152,25 +166,31 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
 		CreatedAt:  patchedUser.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	httputil.WriteSuccessResponse(w, "User updated successfully", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "User updated successfully", res, nil)
 }
 
-func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 || pathParts[4] == "" {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing user ID")
-		return nil
+// DeleteUser godoc
+// @Summary Decommission principal
+// @Description Remove a user from the active directory
+// @Tags Identity
+// @Accept json
+// @Produce json
+// @Param id path string true "User ID"
+// @Param operator query string true "Operator ID"
+// @Success 200 {object} httputil.Response
+// @Security ApiKeyAuth
+// @Router /users/{id} [delete]
+func (h *UserHandler) DeleteUser(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return httputil.WriteErrorResponse(c, errs.ErrBadRequest)
 	}
-	userID := pathParts[4]
-	operator := r.URL.Query().Get("operator")
+	operator := c.Query("operator")
 
-	ctx := r.Context()
-	err := h.userUsecase.DecommissionPrincipal(ctx, userID, operator)
+	err := h.userUsecase.DecommissionPrincipal(c.Context(), userID, operator)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "User deleted successfully", nil, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "User deleted successfully", nil, nil)
 }

@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-	"strings"
-
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -18,17 +15,15 @@ func NewKYCHandler(u domain.KYCUsecase) *KYCHandler {
 	return &KYCHandler{usecase: u}
 }
 
-func (h *KYCHandler) Submit(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing user ID")
-		return nil
+func (h *KYCHandler) Submit(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	userID := pathParts[4]
 
 	var reqDocs []dto.KYCDocumentDTO
-	if err := json.NewDecoder(r.Body).Decode(&reqDocs); err != nil {
-		return err
+	if err := c.BodyParser(&reqDocs); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	domainDocs := make([]domain.KYCDocument, 0)
@@ -38,62 +33,54 @@ func (h *KYCHandler) Submit(w http.ResponseWriter, r *http.Request) error {
 		})
 	}
 
-	resp, err := h.usecase.SubmitKYC(r.Context(), userID, domainDocs)
+	resp, err := h.usecase.SubmitKYC(c.Context(), userID, domainDocs)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "KYC submitted successfully", mapKYCStatusToDTO(resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "KYC submitted successfully", mapKYCStatusToDTO(resp), nil)
 }
 
-func (h *KYCHandler) Status(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing user ID")
-		return nil
+func (h *KYCHandler) Status(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	userID := pathParts[4]
 
-	resp, err := h.usecase.GetKYCStatus(r.Context(), userID)
+	resp, err := h.usecase.GetKYCStatus(c.Context(), userID)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", mapKYCStatusToDTO(resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", mapKYCStatusToDTO(resp), nil)
 }
 
-func (h *KYCHandler) Review(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing user ID")
-		return nil
+func (h *KYCHandler) Review(c *fiber.Ctx) error {
+	userID := c.Params("id")
+	if userID == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	userID := pathParts[4]
 
 	var req dto.KYCReviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.ReviewKYC(r.Context(), userID, req.Operator, req.Status, req.Note)
+	resp, err := h.usecase.ReviewKYC(c.Context(), userID, req.Operator, req.Status, req.Note)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "KYC reviewed successfully", mapKYCStatusToDTO(resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "KYC reviewed successfully", mapKYCStatusToDTO(resp), nil)
 }
 
-func (h *KYCHandler) UploadToken(w http.ResponseWriter, r *http.Request) error {
-	resp, err := h.usecase.IssueUploadToken(r.Context(), "usr_current")
+func (h *KYCHandler) UploadToken(c *fiber.Ctx) error {
+	resp, err := h.usecase.IssueUploadToken(c.Context(), "usr_current")
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", resp, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", resp, nil)
 }
 
 func mapKYCStatusToDTO(s *domain.KYCStatus) dto.KYCStatusResponse {

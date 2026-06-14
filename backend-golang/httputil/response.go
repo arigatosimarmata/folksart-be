@@ -1,10 +1,10 @@
 package httputil
 
 import (
-	"encoding/json"
 	"errors"
 	"net/http"
 
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/errs"
 )
 
@@ -15,10 +15,8 @@ type Response struct {
 	Meta    interface{} `json:"meta,omitempty"`
 }
 
-func WriteSuccessResponse(w http.ResponseWriter, message string, data interface{}, meta interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(Response{
+func WriteSuccessResponse(c *fiber.Ctx, message string, data interface{}, meta interface{}) error {
+	return c.Status(http.StatusOK).JSON(Response{
 		Code:    "00",
 		Message: message,
 		Data:    data,
@@ -26,7 +24,7 @@ func WriteSuccessResponse(w http.ResponseWriter, message string, data interface{
 	})
 }
 
-func WriteErrorResponse(w http.ResponseWriter, err error) {
+func WriteErrorResponse(c *fiber.Ctx, err error) error {
 	statusCode := http.StatusInternalServerError
 	code := "99"
 	message := err.Error()
@@ -50,18 +48,14 @@ func WriteErrorResponse(w http.ResponseWriter, err error) {
 		code = "49"
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(Response{
+	return c.Status(statusCode).JSON(Response{
 		Code:    code,
 		Message: message,
 	})
 }
 
-func WriteValidationErrorResponse(w http.ResponseWriter, validationErrors interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(Response{
+func WriteValidationErrorResponse(c *fiber.Ctx, validationErrors interface{}) error {
+	return c.Status(http.StatusBadRequest).JSON(Response{
 		Code:    "40",
 		Message: "Validation Failed",
 		Data:    validationErrors,

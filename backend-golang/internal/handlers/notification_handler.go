@@ -1,9 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -17,10 +15,10 @@ func NewNotificationHandler(u domain.NotificationUsecase) *NotificationHandler {
 	return &NotificationHandler{usecase: u}
 }
 
-func (h *NotificationHandler) ListRules(w http.ResponseWriter, r *http.Request) error {
-	resp, err := h.usecase.ListRules(r.Context())
+func (h *NotificationHandler) ListRules(c *fiber.Ctx) error {
+	resp, err := h.usecase.ListRules(c.Context())
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	dtos := make([]dto.NotificationRuleResponse, 0)
@@ -36,17 +34,16 @@ func (h *NotificationHandler) ListRules(w http.ResponseWriter, r *http.Request) 
 		})
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", dtos, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", dtos, nil)
 }
 
-func (h *NotificationHandler) CreateRule(w http.ResponseWriter, r *http.Request) error {
+func (h *NotificationHandler) CreateRule(c *fiber.Ctx) error {
 	var req dto.CreateNotificationRuleRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.CreateRule(r.Context(), domain.NotificationRule{
+	resp, err := h.usecase.CreateRule(c.Context(), domain.NotificationRule{
 		Name:     req.Name,
 		Trigger:  req.Trigger,
 		Severity: req.Severity,
@@ -54,7 +51,7 @@ func (h *NotificationHandler) CreateRule(w http.ResponseWriter, r *http.Request)
 		Active:   req.Active,
 	})
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.NotificationRuleResponse{
@@ -67,14 +64,13 @@ func (h *NotificationHandler) CreateRule(w http.ResponseWriter, r *http.Request)
 		CreatedAt: resp.CreatedAt.Format("2006-01-02 15:04:05"),
 	}
 
-	httputil.WriteSuccessResponse(w, "Notification rule created successfully", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Notification rule created successfully", res, nil)
 }
 
-func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.Request) error {
-	resp, err := h.usecase.ListNotifications(r.Context(), "usr_current")
+func (h *NotificationHandler) ListNotifications(c *fiber.Ctx) error {
+	resp, err := h.usecase.ListNotifications(c.Context(), "usr_current")
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	dtos := make([]dto.NotificationResponse, 0)
@@ -90,6 +86,5 @@ func (h *NotificationHandler) ListNotifications(w http.ResponseWriter, r *http.R
 		})
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", dtos, map[string]interface{}{"total": len(dtos)})
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", dtos, map[string]interface{}{"total": len(dtos)})
 }

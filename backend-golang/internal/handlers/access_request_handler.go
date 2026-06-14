@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-	"strings"
-
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -18,13 +15,13 @@ func NewAccessRequestHandler(u domain.AccessRequestUsecase) *AccessRequestHandle
 	return &AccessRequestHandler{usecase: u}
 }
 
-func (h *AccessRequestHandler) Submit(w http.ResponseWriter, r *http.Request) error {
+func (h *AccessRequestHandler) Submit(c *fiber.Ctx) error {
 	var req dto.CreateAccessRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.SubmitRequest(r.Context(), domain.AccessRequest{
+	resp, err := h.usecase.SubmitRequest(c.Context(), domain.AccessRequest{
 		RequesterID:   req.RequesterID,
 		RequesterName: req.RequesterName,
 		Resource:      req.Resource,
@@ -32,18 +29,17 @@ func (h *AccessRequestHandler) Submit(w http.ResponseWriter, r *http.Request) er
 		Justification: req.Justification,
 	})
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Request submitted successfully", mapARToDTO(*resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Request submitted successfully", mapARToDTO(*resp), nil)
 }
 
-func (h *AccessRequestHandler) List(w http.ResponseWriter, r *http.Request) error {
-	status := r.URL.Query().Get("status")
-	resp, err := h.usecase.ListRequests(r.Context(), status)
+func (h *AccessRequestHandler) List(c *fiber.Ctx) error {
+	status := c.Query("status")
+	resp, err := h.usecase.ListRequests(c.Context(), status)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	dtos := make([]dto.AccessRequestResponse, 0)
@@ -51,52 +47,45 @@ func (h *AccessRequestHandler) List(w http.ResponseWriter, r *http.Request) erro
 		dtos = append(dtos, mapARToDTO(req))
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", dtos, map[string]interface{}{"total": len(dtos)})
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", dtos, map[string]interface{}{"total": len(dtos)})
 }
 
-func (h *AccessRequestHandler) Approve(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing request ID")
-		return nil
+func (h *AccessRequestHandler) Approve(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	id := pathParts[4]
 
 	var req dto.ApproveAccessRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.ApproveRequest(r.Context(), id, req.Operator, req.Note)
+	resp, err := h.usecase.ApproveRequest(c.Context(), id, req.Operator, req.Note)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Request approved successfully", mapARToDTO(*resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Request approved successfully", mapARToDTO(*resp), nil)
 }
 
-func (h *AccessRequestHandler) Reject(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing request ID")
-		return nil
+func (h *AccessRequestHandler) Reject(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	id := pathParts[4]
 
 	var req dto.RejectAccessRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.RejectRequest(r.Context(), id, req.Operator, req.Reason)
+	resp, err := h.usecase.RejectRequest(c.Context(), id, req.Operator, req.Reason)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Request rejected successfully", mapARToDTO(*resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Request rejected successfully", mapARToDTO(*resp), nil)
 }
 
 func mapARToDTO(r domain.AccessRequest) dto.AccessRequestResponse {

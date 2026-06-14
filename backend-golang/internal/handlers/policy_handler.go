@@ -1,10 +1,7 @@
 package handlers
 
 import (
-	"encoding/json"
-	"net/http"
-	"strings"
-
+	"github.com/gofiber/fiber/v2"
 	"react-example/backend-golang/httputil"
 	"react-example/backend-golang/internal/domain"
 	"react-example/backend-golang/internal/dto"
@@ -18,10 +15,10 @@ func NewPolicyHandler(u domain.PolicyUsecase) *PolicyHandler {
 	return &PolicyHandler{usecase: u}
 }
 
-func (h *PolicyHandler) List(w http.ResponseWriter, r *http.Request) error {
-	resp, err := h.usecase.ListPolicies(r.Context())
+func (h *PolicyHandler) List(c *fiber.Ctx) error {
+	resp, err := h.usecase.ListPolicies(c.Context())
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	dtos := make([]dto.PolicyResponse, 0)
@@ -29,17 +26,16 @@ func (h *PolicyHandler) List(w http.ResponseWriter, r *http.Request) error {
 		dtos = append(dtos, mapPolicyToDTO(p))
 	}
 
-	httputil.WriteSuccessResponse(w, "Success", dtos, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Success", dtos, nil)
 }
 
-func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) error {
+func (h *PolicyHandler) Create(c *fiber.Ctx) error {
 	var req dto.CreatePolicyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.CreatePolicy(r.Context(), domain.Policy{
+	resp, err := h.usecase.CreatePolicy(c.Context(), domain.Policy{
 		Name:        req.Name,
 		Description: req.Description,
 		Condition:   req.Condition,
@@ -48,27 +44,24 @@ func (h *PolicyHandler) Create(w http.ResponseWriter, r *http.Request) error {
 		Active:      req.Active,
 	})
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Policy created successfully", mapPolicyToDTO(*resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Policy created successfully", mapPolicyToDTO(*resp), nil)
 }
 
-func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing policy ID")
-		return nil
+func (h *PolicyHandler) Update(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	id := pathParts[4]
 
 	var req dto.CreatePolicyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.UpdatePolicy(r.Context(), id, domain.Policy{
+	resp, err := h.usecase.UpdatePolicy(c.Context(), id, domain.Policy{
 		Name:        req.Name,
 		Description: req.Description,
 		Condition:   req.Condition,
@@ -77,39 +70,35 @@ func (h *PolicyHandler) Update(w http.ResponseWriter, r *http.Request) error {
 		Active:      req.Active,
 	})
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Policy updated successfully", mapPolicyToDTO(*resp), nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Policy updated successfully", mapPolicyToDTO(*resp), nil)
 }
 
-func (h *PolicyHandler) Delete(w http.ResponseWriter, r *http.Request) error {
-	pathParts := strings.Split(r.URL.Path, "/")
-	if len(pathParts) < 5 {
-		httputil.WriteErrorResponse(w, http.StatusBadRequest, "01", "Missing policy ID")
-		return nil
+func (h *PolicyHandler) Delete(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if id == "" {
+		return httputil.WriteErrorResponse(c, fiber.ErrBadRequest)
 	}
-	id := pathParts[4]
 
-	err := h.usecase.DeletePolicy(r.Context(), id)
+	err := h.usecase.DeletePolicy(c.Context(), id)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	httputil.WriteSuccessResponse(w, "Policy deleted successfully", nil, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Policy deleted successfully", nil, nil)
 }
 
-func (h *PolicyHandler) Evaluate(w http.ResponseWriter, r *http.Request) error {
+func (h *PolicyHandler) Evaluate(c *fiber.Ctx) error {
 	var req dto.EvaluatePolicyRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return err
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
 	}
 
-	resp, err := h.usecase.Evaluate(r.Context(), req.UserID, req.Resource, req.Action)
+	resp, err := h.usecase.Evaluate(c.Context(), req.UserID, req.Resource, req.Action)
 	if err != nil {
-		return err
+		return httputil.WriteErrorResponse(c, err)
 	}
 
 	res := dto.PolicyEvaluationResponse{
@@ -124,8 +113,7 @@ func (h *PolicyHandler) Evaluate(w http.ResponseWriter, r *http.Request) error {
 		res.MatchedPolicy = &p
 	}
 
-	httputil.WriteSuccessResponse(w, "Evaluation complete", res, nil)
-	return nil
+	return httputil.WriteSuccessResponse(c, "Evaluation complete", res, nil)
 }
 
 func mapPolicyToDTO(p domain.Policy) dto.PolicyResponse {
