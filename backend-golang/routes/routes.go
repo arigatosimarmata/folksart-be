@@ -2,28 +2,26 @@ package routes
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
-	delivery "react-example/backend-golang/delivery/http"
-	"react-example/backend-golang/delivery/http/middleware"
+	"react-example/backend-golang/internal/handlers"
+	"react-example/backend-golang/middleware"
 )
 
-// HandlerContainer aggregates all delivery handlers for injection
 type HandlerContainer struct {
-	UserHandler        *delivery.UserHandler
-	AuditHandler       *delivery.AuditHandler
-	AuthHandler        *delivery.AuthHandler
-	RoleHandler        *delivery.RoleHandler
-	ARHandler          *delivery.AccessRequestHandler
-	KYCHandler         *delivery.KYCHandler
-	PolicyHandler      *delivery.PolicyHandler
-	NotificationHandler *delivery.NotificationHandler
-	ReportHandler      *delivery.ReportHandler
+	UserHandler         *handlers.UserHandler
+	AuditHandler        *handlers.AuditHandler
+	AuthHandler         *handlers.AuthHandler
+	RoleHandler         *handlers.RoleHandler
+	ARHandler           *handlers.AccessRequestHandler
+	KYCHandler          *handlers.KYCHandler
+	PolicyHandler       *handlers.PolicyHandler
+	NotificationHandler *handlers.NotificationHandler
+	ReportHandler       *handlers.ReportHandler
 }
 
-// RegisterHandlers maps corporate endpoints under the /api/v1 namespace using Clean Architecture controllers
 func RegisterHandlers(hc HandlerContainer) {
-	// Initialize token bucket rate limiters for separate resources
 	userLimiter := middleware.NewRateLimiter(5.0, 10.0, 1*time.Hour)
 	auditLimiter := middleware.NewRateLimiter(3.0, 5.0, 30*time.Minute)
 	authLimiter := middleware.NewRateLimiter(10.0, 20.0, 1*time.Hour)
@@ -35,7 +33,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodPost {
 			return hc.UserHandler.EnrollUser(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	})))
 
 	http.HandleFunc("/api/v1/users/", middleware.LimitMiddleware(userLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
@@ -53,7 +51,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodDelete {
 			return hc.UserHandler.DeleteUser(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	})))
 
 	// 2. Authentication & Session
@@ -61,7 +59,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		if r.Method == http.MethodPost {
 			return hc.AuthHandler.Login(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	})))
 
 	http.HandleFunc("/api/v1/auth/logout", middleware.Adapt(hc.AuthHandler.Logout))
@@ -75,7 +73,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodPost {
 			return hc.RoleHandler.CreateRole(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	}))
 
 	http.HandleFunc("/api/v1/permissions", middleware.Adapt(hc.RoleHandler.ListPermissions))
@@ -87,7 +85,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodPost {
 			return hc.ARHandler.Submit(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	}))
 
 	http.HandleFunc("/api/v1/access-requests/", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
@@ -96,7 +94,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if strings.HasSuffix(r.URL.Path, "/reject") {
 			return hc.ARHandler.Reject(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	}))
 
 	// 5. Policy Engine
@@ -106,7 +104,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodPost {
 			return hc.PolicyHandler.Create(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	}))
 
 	http.HandleFunc("/api/v1/policies/evaluate", middleware.Adapt(hc.PolicyHandler.Evaluate))
@@ -118,7 +116,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodPost {
 			return hc.AuditHandler.CreateLog(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	})))
 
 	http.HandleFunc("/api/v1/audit-logs/sign", middleware.Adapt(hc.AuditHandler.SignLogs))
@@ -128,7 +126,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		if r.Method == http.MethodPost {
 			return hc.AuthHandler.InternalToken(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	}))
 
 	http.HandleFunc("/api/v1/internal/token/verify", middleware.Adapt(hc.AuthHandler.VerifyInternalToken))
@@ -140,7 +138,7 @@ func RegisterHandlers(hc HandlerContainer) {
 		} else if r.Method == http.MethodPost {
 			return hc.NotificationHandler.CreateRule(w, r)
 		}
-		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+		return nil
 	}))
 
 	http.HandleFunc("/api/v1/notifications", middleware.Adapt(hc.NotificationHandler.ListNotifications))
@@ -148,9 +146,8 @@ func RegisterHandlers(hc HandlerContainer) {
 	// 8. Report & Export
 	http.HandleFunc("/api/v1/reports/access-summary", middleware.Adapt(hc.ReportHandler.AccessSummary))
 	http.HandleFunc("/api/v1/reports/risk-score-trend", middleware.Adapt(hc.ReportHandler.RiskTrend))
-	http.HandleFunc("/api/v1/export/csv", middleware.Adapt(hc.UserHandler.ExportCSV))
 
-	// 9. API Documentation (Swagger UI)
+	// 9. API Documentation
 	fs := http.FileServer(http.Dir("./backend-golang/docs"))
 	http.Handle("/docs/", http.StripPrefix("/docs/", fs))
 }

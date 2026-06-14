@@ -9,6 +9,21 @@ export type UserStatus = "Active" | "Banned" | "Deactivated";
 
 export type KYCStatus = "Pending" | "Verified" | "Failed" | "Suspicious";
 
+export interface LoginAttempt {
+  id: string;
+  timestamp: string;
+  ipAddress: string;
+  device: string;
+  location: string;
+  status: "Success" | "Failed" | "Blocked";
+}
+
+export interface UserIntelligence {
+  auditTrail: AuditLog[];
+  loginAttempts: LoginAttempt[];
+  permissions: string[];
+}
+
 export interface IAMUser {
   id: string;
   name: string;
@@ -22,6 +37,7 @@ export interface IAMUser {
   riskScore: number; // 0 to 100
   mfaEnabled: boolean;
   createdAt: string;
+  intelligence?: UserIntelligence;
 }
 
 export type LogSeverity = "Critical" | "High" | "Medium" | "Low";

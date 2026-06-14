@@ -12,21 +12,24 @@ import (
 
 var DB *sql.DB
 
-// InitDB initializes the MySQL connection pool with resilient connection-ready loops
-func InitDB() *sql.DB {
+// DB connection string helper
+func getDSN() string {
 	user := getEnv("DB_USER", "root")
 	pass := getEnv("DB_PASSWORD", "secret")
 	host := getEnv("DB_HOST", "127.0.0.1")
 	port := getEnv("DB_PORT", "3306")
 	name := getEnv("DB_NAME", "folksart_iam")
+	return fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true", user, pass, host, port, name)
+}
 
-	// Create MySQL Connection String
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true&multiStatements=true", user, pass, host, port, name)
+// InitDB initializes the MySQL connection pool
+func InitDB() *sql.DB {
+	dsn := getDSN()
+	host := getEnv("DB_HOST", "127.0.0.1")
+	port := getEnv("DB_PORT", "3306")
 
 	var db *sql.DB
 	var err error
-
-	log.Printf("[IAM-DB] Attempting connection on database host %s:%s...", host, port)
 
 	// Resilient connection pattern (retry on cold starts e.g. in docker-compose)
 	for i := 1; i <= 5; i++ {
@@ -55,10 +58,4 @@ func InitDB() *sql.DB {
 	return db
 }
 
-// Helpers
-func getEnv(key, fallback string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
-	}
-	return fallback
-}
+// End of file

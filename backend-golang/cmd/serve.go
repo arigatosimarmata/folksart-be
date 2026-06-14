@@ -11,11 +11,11 @@ import (
 
 	"github.com/spf13/cobra"
 	"react-example/backend-golang/config"
-	delivery "react-example/backend-golang/delivery/http"
-	"react-example/backend-golang/delivery/http/middleware"
-	"react-example/backend-golang/repository/mysql"
+	"react-example/backend-golang/internal/handlers"
+	"react-example/backend-golang/internal/repositories"
+	"react-example/backend-golang/internal/usecases"
+	"react-example/backend-golang/middleware"
 	"react-example/backend-golang/routes"
-	"react-example/backend-golang/usecase"
 )
 
 var serveCmd = &cobra.Command{
@@ -35,12 +35,10 @@ func corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-
 		next.ServeHTTP(w, r)
 	})
 }
@@ -51,29 +49,29 @@ func runServer() {
 	db := config.InitDB()
 	defer db.Close()
 
-	userRepo := mysql.NewMySQLUserRepository(db)
-	auditRepo := mysql.NewMySQLAuditRepository(db)
+	userRepo := repositories.NewUserRepository(db)
+	auditRepo := repositories.NewAuditRepository(db)
 
-	userUsecase := usecase.NewUserUsecase(userRepo, auditRepo)
-	auditUsecase := usecase.NewAuditUsecase(auditRepo)
-	authUsecase := usecase.NewAuthUsecase(userRepo)
-	roleUsecase := usecase.NewRoleUsecase()
-	arUsecase := usecase.NewAccessRequestUsecase()
-	kycUsecase := usecase.NewKYCUsecase()
-	policyUsecase := usecase.NewPolicyUsecase()
-	nfUsecase := usecase.NewNotificationUsecase()
-	reportUsecase := usecase.NewReportUsecase()
+	userUsecase := usecases.NewUserUsecase(userRepo, auditRepo)
+	auditUsecase := usecases.NewAuditUsecase(auditRepo)
+	authUsecase := usecases.NewAuthUsecase(userRepo)
+	roleUsecase := usecases.NewRoleUsecase()
+	arUsecase := usecases.NewAccessRequestUsecase()
+	kycUsecase := usecases.NewKYCUsecase()
+	policyUsecase := usecases.NewPolicyUsecase()
+	nfUsecase := usecases.NewNotificationUsecase()
+	reportUsecase := usecases.NewReportUsecase()
 
 	hc := routes.HandlerContainer{
-		UserHandler:         delivery.NewUserHandler(userUsecase),
-		AuditHandler:        delivery.NewAuditHandler(auditUsecase),
-		AuthHandler:         delivery.NewAuthHandler(authUsecase),
-		RoleHandler:         delivery.NewRoleHandler(roleUsecase),
-		ARHandler:           delivery.NewAccessRequestHandler(arUsecase),
-		KYCHandler:          delivery.NewKYCHandler(kycUsecase),
-		PolicyHandler:       delivery.NewPolicyHandler(policyUsecase),
-		NotificationHandler: delivery.NewNotificationHandler(nfUsecase),
-		ReportHandler:       delivery.NewReportHandler(reportUsecase),
+		UserHandler:         handlers.NewUserHandler(userUsecase),
+		AuditHandler:        handlers.NewAuditHandler(auditUsecase),
+		AuthHandler:         handlers.NewAuthHandler(authUsecase),
+		RoleHandler:         handlers.NewRoleHandler(roleUsecase),
+		ARHandler:           handlers.NewAccessRequestHandler(arUsecase),
+		KYCHandler:          handlers.NewKYCHandler(kycUsecase),
+		PolicyHandler:       handlers.NewPolicyHandler(policyUsecase),
+		NotificationHandler: handlers.NewNotificationHandler(nfUsecase),
+		ReportHandler:       handlers.NewReportHandler(reportUsecase),
 	}
 
 	routes.RegisterHandlers(hc)
@@ -99,12 +97,10 @@ func runServer() {
 	select {
 	case err := <-serverErrors:
 		log.Fatalf("[IAM-CORE] CRITICAL: Server crashed: %v", err)
-
 	case sig := <-shutdownSignal:
 		log.Printf("[IAM-CORE] Received signal %v, commencing graceful shutdown...", sig)
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 		defer cancel()
-
 		if err := srv.Shutdown(ctx); err != nil {
 			log.Printf("[IAM-CORE] Graceful server drainage failed: %v", err)
 			_ = srv.Close()

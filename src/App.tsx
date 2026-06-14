@@ -24,7 +24,13 @@ import {
   Gauge,
   Sliders,
   Send,
-  HelpCircle
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  History,
+  Key,
+  ShieldHalf,
+  Clock
 } from "lucide-react";
 import { IAMUser, AuditLog, UserRole, UserStatus, KYCStatus, LogSeverity } from "./types";
 
@@ -60,6 +66,8 @@ export default function App() {
   const [isEnrollModeOpen, setIsEnrollModeOpen] = useState(false);
   const [isEditModeOpen, setIsEditModeOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<IAMUser | null>(null);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+  const [loadingIntelligence, setLoadingIntelligence] = useState<string | null>(null);
 
   // Enrollment fields
   const [enrollName, setEnrollName] = useState("");
@@ -295,6 +303,47 @@ export default function App() {
     } catch (err: any) {
       triggerNotification("error", err.message);
     }
+  };
+
+  const toggleRowExpansion = async (userId: string) => {
+    if (expandedUserId === userId) {
+      setExpandedUserId(null);
+      return;
+    }
+
+    setExpandedUserId(userId);
+    
+    // Check if we already have intelligence for this user
+    const user = users.find(u => u.id === userId);
+    if (user && user.intelligence) return;
+
+    setLoadingIntelligence(userId);
+    
+    // Simulate fetching user intelligence (Audit Trail, Login Attempts, Permissions)
+    // In a real scenario, this would be an API call like /api/v1/users/:id/intelligence
+    setTimeout(() => {
+      const mockIntelligence = {
+        auditTrail: [
+          { id: `log-det-1-${userId}`, timestamp: new Date().toISOString(), actor: "System", action: "Access Token Refresh", target: userId, severity: "Low" as const },
+          { id: `log-det-2-${userId}`, timestamp: new Date(Date.now() - 3600000).toISOString(), actor: operatorId, action: "Attribute Inspection", target: userId, severity: "Low" as const },
+        ],
+        loginAttempts: [
+          { id: `auth-1-${userId}`, timestamp: new Date().toISOString(), ipAddress: "182.16.2.45", device: "Chrome / macOS", location: "Singapore", status: "Success" as const },
+          { id: `auth-2-${userId}`, timestamp: new Date(Date.now() - 86400000).toISOString(), ipAddress: "182.16.2.45", device: "Chrome / macOS", location: "Singapore", status: "Success" as const },
+          { id: `auth-3-${userId}`, timestamp: new Date(Date.now() - 172800000).toISOString(), ipAddress: "103.45.1.12", device: "Safari / iOS", location: "Unknown", status: "Failed" as const },
+        ],
+        permissions: rolePermissions[users.find(u => u.id === userId)?.role || "End User"]
+      };
+
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, intelligence: mockIntelligence } : u));
+      setLoadingIntelligence(null);
+    }, 800);
+  };
+
+  const rolePermissions: Record<string, string[]> = {
+    "Administrator": ["identity.write", "identity.read", "identity.delete", "audit.read", "system.config"],
+    "Security Officer": ["identity.read", "identity.patch", "audit.read", "risk.manage"],
+    "End User": ["identity.read.self", "profile.edit"]
   };
 
   // 11. Write custom manual system log entry (POST /api/v1/audit-logs)
@@ -638,6 +687,7 @@ export default function App() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-900/60 border-b border-slate-900 text-slate-400 font-mono">
+                      <th className="p-4 w-10"></th>
                       <th className="p-4 font-medium uppercase tracking-wider">Identity Details</th>
                       <th className="p-4 font-medium uppercase tracking-wider">Role & Dept</th>
                       <th className="p-4 font-medium uppercase tracking-wider">Account Status</th>
@@ -655,7 +705,7 @@ export default function App() {
                         </td>
                       </tr>
                     ) : (
-                      users.map((user) => {
+                      users.flatMap((user) => {
                         const scoreColor = 
                           user.riskScore > 75 
                             ? "bg-red-500 text-red-500" 
@@ -664,10 +714,21 @@ export default function App() {
                               : "bg-teal-500 text-teal-400";
 
                         const isSimulatedActionDisabled = activeRole === "End User";
+                        const isExpanded = expandedUserId === user.id;
 
-                        return (
-                          <tr key={user.id} className="border-b border-slate-900/80 hover:bg-slate-900/20 transition-all">
+                        return [
+                          <tr key={`${user.id}-main`} className={`border-b border-slate-900/80 hover:bg-slate-900/20 transition-all ${isExpanded ? "bg-slate-900/10" : ""}`}>
                             
+                            {/* Expand toggle */}
+                            <td className="p-4">
+                              <button 
+                                onClick={() => toggleRowExpansion(user.id)}
+                                className="p-1 text-slate-500 hover:text-teal-400 transition-colors"
+                              >
+                                {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                              </button>
+                            </td>
+
                             {/* Personal identifiers details */}
                             <td className="p-4">
                               <div className="flex items-center gap-3">
@@ -774,8 +835,107 @@ export default function App() {
                               </div>
                             </td>
 
-                          </tr>
-                        );
+                          </tr>,
+                          isExpanded && (
+                            <tr key={`${user.id}-expansion`} className="bg-slate-900/30">
+                              <td colSpan={7} className="p-0 border-b border-slate-800">
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                                    
+                                    {/* Audit Trail Column */}
+                                    <div className="flex flex-col gap-3">
+                                      <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2 uppercase tracking-wider">
+                                        <History className="w-3.5 h-3.5 text-teal-400" />
+                                        Subject Audit Trail
+                                      </h4>
+                                      <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 min-h-[160px]">
+                                        {loadingIntelligence === user.id ? (
+                                          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-600 font-mono text-[10px]">
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            <span>Querying Logs...</span>
+                                          </div>
+                                        ) : user.intelligence?.auditTrail.length === 0 ? (
+                                          <div className="flex-1 flex items-center justify-center text-slate-600 italic text-[10px]">No recent audit logs found.</div>
+                                        ) : (
+                                          user.intelligence?.auditTrail.map(log => (
+                                            <div key={log.id} className="flex flex-col gap-0.5 border-l border-slate-800 pl-3 pb-2 last:pb-0">
+                                              <div className="flex items-center justify-between">
+                                                <span className="text-white font-medium">{log.action}</span>
+                                                <span className="text-[9px] text-slate-500">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                                              </div>
+                                              <span className="text-[10px] text-slate-400">Actor: {log.actor}</span>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Login Attempts Column */}
+                                    <div className="flex flex-col gap-3">
+                                      <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2 uppercase tracking-wider">
+                                        <Clock className="w-3.5 h-3.5 text-teal-400" />
+                                        Recent Access Logic
+                                      </h4>
+                                      <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 min-h-[160px]">
+                                        {loadingIntelligence === user.id ? (
+                                          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-600 font-mono text-[10px]">
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            <span>Analyzing sessions...</span>
+                                          </div>
+                                        ) : user.intelligence?.loginAttempts.length === 0 ? (
+                                          <div className="flex-1 flex items-center justify-center text-slate-600 italic text-[10px]">No login records detected.</div>
+                                        ) : (
+                                          user.intelligence?.loginAttempts.map(attempt => (
+                                            <div key={attempt.id} className="flex items-center justify-between gap-3 p-2 bg-slate-900/50 rounded-lg border border-slate-800/50">
+                                              <div className="flex flex-col">
+                                                <span className="text-[10px] font-mono text-slate-300">{attempt.ipAddress}</span>
+                                                <span className="text-[9px] text-slate-500">{attempt.device} • {attempt.location}</span>
+                                              </div>
+                                              <span className={`text-[9px] font-bold uppercase rounded px-1.5 py-0.5 ${
+                                                attempt.status === "Success" ? "text-teal-400 bg-teal-400/5" : "text-red-400 bg-red-400/5"
+                                              }`}>
+                                                {attempt.status}
+                                              </span>
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Permissions Column */}
+                                    <div className="flex flex-col gap-3">
+                                      <h4 className="text-xs font-bold text-slate-300 flex items-center gap-2 uppercase tracking-wider">
+                                        <ShieldHalf className="w-3.5 h-3.5 text-teal-400" />
+                                        Active Permission Sets
+                                      </h4>
+                                      <div className="bg-slate-950/50 border border-slate-800 rounded-xl p-4 flex flex-wrap gap-2 content-start min-h-[160px]">
+                                        {loadingIntelligence === user.id ? (
+                                          <div className="flex-1 flex flex-col items-center justify-center gap-2 text-slate-600 font-mono text-[10px]">
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            <span>Building R-MAP...</span>
+                                          </div>
+                                        ) : (
+                                          user.intelligence?.permissions.map(perm => (
+                                            <span key={perm} className="flex items-center gap-1.5 px-2 py-1 bg-teal-500/5 border border-teal-500/10 rounded text-[10px] text-teal-400 font-mono">
+                                              <Key className="w-2.5 h-2.5" />
+                                              {perm}
+                                            </span>
+                                          ))
+                                        )}
+                                      </div>
+                                    </div>
+
+                                  </div>
+                                </motion.div>
+                              </td>
+                            </tr>
+                          )
+                        ];
                       })
                     )}
                   </tbody>
