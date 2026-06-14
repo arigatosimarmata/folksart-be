@@ -8,59 +8,149 @@ import (
 	"react-example/backend-golang/delivery/http/middleware"
 )
 
+// HandlerContainer aggregates all delivery handlers for injection
+type HandlerContainer struct {
+	UserHandler        *delivery.UserHandler
+	AuditHandler       *delivery.AuditHandler
+	AuthHandler        *delivery.AuthHandler
+	RoleHandler        *delivery.RoleHandler
+	ARHandler          *delivery.AccessRequestHandler
+	KYCHandler         *delivery.KYCHandler
+	PolicyHandler      *delivery.PolicyHandler
+	NotificationHandler *delivery.NotificationHandler
+	ReportHandler      *delivery.ReportHandler
+}
+
 // RegisterHandlers maps corporate endpoints under the /api/v1 namespace using Clean Architecture controllers
-func RegisterHandlers(userHandler *delivery.UserHandler, auditHandler *delivery.AuditHandler) {
+func RegisterHandlers(hc HandlerContainer) {
 	// Initialize token bucket rate limiters for separate resources
-	userLimiter := middleware.NewRateLimiter(5.0, 10.0, 1*time.Hour)       // 5 reqs/sec, burst capacity of 10
-	auditLimiter := middleware.NewRateLimiter(3.0, 5.0, 30*time.Minute)   // 3 reqs/sec, burst capacity of 5
+	userLimiter := middleware.NewRateLimiter(5.0, 10.0, 1*time.Hour)
+	auditLimiter := middleware.NewRateLimiter(3.0, 5.0, 30*time.Minute)
+	authLimiter := middleware.NewRateLimiter(10.0, 20.0, 1*time.Hour)
 
 	// 1. Identity Directory Operations
 	http.HandleFunc("/api/v1/users", middleware.LimitMiddleware(userLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method == http.MethodOptions {
-			return nil // Handled at corsMiddleware level
-		}
 		if r.Method == http.MethodGet {
-			return userHandler.ListUsers(w, r)
+			return hc.UserHandler.ListUsers(w, r)
 		} else if r.Method == http.MethodPost {
-			return userHandler.EnrollUser(w, r)
-		} else {
-			return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+			return hc.UserHandler.EnrollUser(w, r)
 		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
 	})))
 
-	// Handle ID sub-routing: /api/v1/users/usr-XXXX
 	http.HandleFunc("/api/v1/users/", middleware.LimitMiddleware(userLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method == http.MethodOptions {
-			return nil // Handled at corsMiddleware level
+		if strings.Contains(r.URL.Path, "/kyc") {
+			if r.Method == http.MethodGet {
+				return hc.KYCHandler.Status(w, r)
+			} else if r.Method == http.MethodPost {
+				return hc.KYCHandler.Submit(w, r)
+			} else if r.Method == http.MethodPatch {
+				return hc.KYCHandler.Review(w, r)
+			}
 		}
 		if r.Method == http.MethodPatch {
-			return userHandler.UpdateUser(w, r)
+			return hc.UserHandler.UpdateUser(w, r)
 		} else if r.Method == http.MethodDelete {
-			return userHandler.DeleteUser(w, r)
-		} else {
-			return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+			return hc.UserHandler.DeleteUser(w, r)
 		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
 	})))
 
-	// 2. Audit Trails Operations
-	http.HandleFunc("/api/v1/audit-logs", middleware.LimitMiddleware(auditLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method == http.MethodOptions {
-			return nil // Handled at corsMiddleware level
+	// 2. Authentication & Session
+	http.HandleFunc("/api/v1/auth/login", middleware.LimitMiddleware(authLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method == http.MethodPost {
+			return hc.AuthHandler.Login(w, r)
 		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	})))
+
+	http.HandleFunc("/api/v1/auth/logout", middleware.Adapt(hc.AuthHandler.Logout))
+	http.HandleFunc("/api/v1/auth/me", middleware.Adapt(hc.AuthHandler.Me))
+	http.HandleFunc("/api/v1/sessions", middleware.Adapt(hc.AuthHandler.Sessions))
+
+	// 3. Role & Permission
+	http.HandleFunc("/api/v1/roles", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
 		if r.Method == http.MethodGet {
-			return auditHandler.ListAuditLogs(w, r)
+			return hc.RoleHandler.ListRoles(w, r)
 		} else if r.Method == http.MethodPost {
-			return auditHandler.CreateLog(w, r)
-		} else {
-			return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+			return hc.RoleHandler.CreateRole(w, r)
 		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	}))
+
+	http.HandleFunc("/api/v1/permissions", middleware.Adapt(hc.RoleHandler.ListPermissions))
+
+	// 4. Access Request & Approval
+	http.HandleFunc("/api/v1/access-requests", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method == http.MethodGet {
+			return hc.ARHandler.List(w, r)
+		} else if r.Method == http.MethodPost {
+			return hc.ARHandler.Submit(w, r)
+		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	}))
+
+	http.HandleFunc("/api/v1/access-requests/", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if strings.HasSuffix(r.URL.Path, "/approve") {
+			return hc.ARHandler.Approve(w, r)
+		} else if strings.HasSuffix(r.URL.Path, "/reject") {
+			return hc.ARHandler.Reject(w, r)
+		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	}))
+
+	// 5. Policy Engine
+	http.HandleFunc("/api/v1/policies", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method == http.MethodGet {
+			return hc.PolicyHandler.List(w, r)
+		} else if r.Method == http.MethodPost {
+			return hc.PolicyHandler.Create(w, r)
+		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	}))
+
+	http.HandleFunc("/api/v1/policies/evaluate", middleware.Adapt(hc.PolicyHandler.Evaluate))
+
+	// 6. Audit Trails
+	http.HandleFunc("/api/v1/audit-logs", middleware.LimitMiddleware(auditLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method == http.MethodGet {
+			return hc.AuditHandler.ListAuditLogs(w, r)
+		} else if r.Method == http.MethodPost {
+			return hc.AuditHandler.CreateLog(w, r)
+		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
 	})))
 
-	// 3. CSV Dataset Export Engine
-	http.HandleFunc("/api/v1/export/csv", middleware.LimitMiddleware(userLimiter, middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
-		if r.Method == http.MethodOptions {
-			return nil // Handled at corsMiddleware level
+	http.HandleFunc("/api/v1/audit-logs/sign", middleware.Adapt(hc.AuditHandler.SignLogs))
+
+	// 7. Inter-Service Auth (Internal)
+	http.HandleFunc("/api/v1/internal/token", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method == http.MethodPost {
+			return hc.AuthHandler.InternalToken(w, r)
 		}
-		return userHandler.ExportCSV(w, r)
-	})))
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	}))
+
+	http.HandleFunc("/api/v1/internal/token/verify", middleware.Adapt(hc.AuthHandler.VerifyInternalToken))
+
+	// 8. Notification & Alerting
+	http.HandleFunc("/api/v1/notification-rules", middleware.Adapt(func(w http.ResponseWriter, r *http.Request) error {
+		if r.Method == http.MethodGet {
+			return hc.NotificationHandler.ListRules(w, r)
+		} else if r.Method == http.MethodPost {
+			return hc.NotificationHandler.CreateRule(w, r)
+		}
+		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
+	}))
+
+	http.HandleFunc("/api/v1/notifications", middleware.Adapt(hc.NotificationHandler.ListNotifications))
+
+	// 8. Report & Export
+	http.HandleFunc("/api/v1/reports/access-summary", middleware.Adapt(hc.ReportHandler.AccessSummary))
+	http.HandleFunc("/api/v1/reports/risk-score-trend", middleware.Adapt(hc.ReportHandler.RiskTrend))
+	http.HandleFunc("/api/v1/export/csv", middleware.Adapt(hc.UserHandler.ExportCSV))
+
+	// 9. API Documentation (Swagger UI)
+	fs := http.FileServer(http.Dir("./backend-golang/docs"))
+	http.Handle("/docs/", http.StripPrefix("/docs/", fs))
 }

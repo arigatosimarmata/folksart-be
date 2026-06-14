@@ -31,6 +31,9 @@ It implements secure storage for corporate identity directories (Subject Princip
 │   └── audit.go          # Querying audit trails and manual system entries
 ├── routes/
 │   └── routes.go         # Endpoint map and HTTP option cors controller queries
+├── docs/
+│   ├── swagger.json      # OpenAPI 3.0 specification
+│   └── index.html        # Swagger UI consumer
 ├── schema.sql            # Script to run tables and enterprise seeds 
 ├── go.mod                # Go module descriptors file
 ├── Dockerfile            # Compile & compact multistage run commands
@@ -113,9 +116,16 @@ docker run -d -p 8080:8080 --name iam-backend folksart-iam-backend
 
 ---
 
-## 📡 API Testing Examples
+## 📡 API Documentation & Testing
 
-### 1. List Users with Search and Filters
+The project includes built-in Swagger UI documentation for all governance endpoints.
+
+- **Swagger UI**: [http://localhost:8080/docs/](http://localhost:8080/docs/)
+- **OpenAPI JSON**: [http://localhost:8080/docs/swagger.json](http://localhost:8080/docs/swagger.json)
+
+### Manual Curl Examples
+
+#### 1. List Users with Search and Filters
 ```bash
 curl -X GET "http://localhost:8080/api/v1/users?search=Connor&role=Administrator"
 ```

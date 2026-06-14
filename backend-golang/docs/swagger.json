@@ -1,0 +1,173 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "IAM Governance API",
+    "description": "Standardized Identity and Access Management governance endpoints for corporate directory monitoring and audit trailing.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "IAM Core Team",
+      "email": "iam-governance@corporate.local"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Primary Production Proxy"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "tags": ["users"],
+        "summary": "List all user identity entries",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Search by name or email" },
+          { "name": "role", "in": "query", "schema": { "type": "string" }, "description": "Filter by role" },
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "Filter by status" },
+          { "name": "department", "in": "query", "schema": { "type": "string" }, "description": "Filter by department" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated list of users", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserList" } } } }
+        }
+      },
+      "post": {
+        "tags": ["users"],
+        "summary": "Enroll a new user identity",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EnrollRequest" } } } },
+        "responses": {
+          "201": { "description": "User created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IAMUser" } } } }
+        }
+      }
+    },
+    "/users/{id}": {
+      "patch": {
+        "tags": ["users"],
+        "summary": "Update user attributes",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateUserPayload" } } } },
+        "responses": {
+          "200": { "description": "User updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IAMUser" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["users"],
+        "summary": "Decommission a user identity",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "operator", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "User deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "message": { "type": "string" } } } } } }
+        }
+      }
+    },
+    "/audit-logs": {
+      "get": {
+        "tags": ["audit"],
+        "summary": "Fetch administrative audit trails",
+        "parameters": [
+          { "name": "severity", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": {
+          "200": { "description": "Array of audit logs", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AuditLog" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["audit"],
+        "summary": "Record a manual audit event",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateLogPayload" } } } },
+        "responses": {
+          "201": { "description": "Log created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuditLog" } } } }
+        }
+      }
+    },
+    "/export/csv": {
+      "get": {
+        "tags": ["export"],
+        "summary": "Export identity directory to CSV",
+        "responses": {
+          "200": { "description": "CSV byte stream" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "IAMUser": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string" },
+          "phone": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string" },
+          "kycStatus": { "type": "string" },
+          "department": { "type": "string" },
+          "riskScore": { "type": "integer" },
+          "mfaEnabled": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UserList": {
+        "type": "object",
+        "properties": {
+          "users": { "type": "array", "items": { "$ref": "#/components/schemas/IAMUser" } },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "page": { "type": "integer" },
+              "limit": { "type": "integer" },
+              "pages": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "EnrollRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "role": { "type": "string" },
+          "department": { "type": "string" },
+          "operator": { "type": "string" }
+        }
+      },
+      "UpdateUserPayload": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "kycStatus": { "type": "string" },
+          "riskScore": { "type": "integer" },
+          "mfaEnabled": { "type": "boolean" },
+          "operator": { "type": "string" }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "actor": { "type": "string" },
+          "action": { "type": "string" },
+          "target": { "type": "string" },
+          "severity": { "type": "string" }
+        }
+      },
+      "CreateLogPayload": {
+        "type": "object",
+        "properties": {
+          "actor": { "type": "string" },
+          "action": { "type": "string" },
+          "target": { "type": "string" },
+          "severity": { "type": "string" }
+        }
+      }
+    }
+  }
+}

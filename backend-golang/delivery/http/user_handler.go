@@ -21,6 +21,21 @@ func NewUserHandler(uu domain.UserUsecase) *UserHandler {
 }
 
 // ListUsers handles GET /api/v1/users
+// @Summary List all user identity entries
+// @Description Fetch a paginated list of users with optional filters for search, role, status, and department.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param search query string false "Search by name or email"
+// @Param role query string false "Filter by role (e.g., Admin, User)"
+// @Param status query string false "Filter by status (e.g., Active, Inactive)"
+// @Param department query string false "Filter by department"
+// @Param page query int false "Page number for pagination" default(1)
+// @Param limit query int false "Number of records per page" default(10)
+// @Success 200 {object} map[string]interface{} "List of users with pagination metadata"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/users [get]
 func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
@@ -63,16 +78,13 @@ func (h *UserHandler) ListUsers(w http.ResponseWriter, r *http.Request) error {
 
 	totalPages := (total + limit - 1) / limit
 
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(map[string]interface{}{
-		"users": users,
-		"pagination": map[string]interface{}{
-			"total": total,
-			"page":  page,
-			"limit": limit,
-			"pages": totalPages,
-		},
+	middleware.SendJSON(w, http.StatusOK, users, map[string]interface{}{
+		"total": total,
+		"page":  page,
+		"limit": limit,
+		"pages": totalPages,
 	})
+	return nil
 }
 
 type EnrollRequest struct {
@@ -84,6 +96,17 @@ type EnrollRequest struct {
 }
 
 // EnrollUser handles POST /api/v1/users
+// @Summary Enroll a new user identity
+// @Description Create a new user record in the governance directory.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param user body EnrollRequest true "User enrollment details"
+// @Success 201 {object} domain.User "Newly created user object"
+// @Failure 400 {object} middleware.APIError "Bad Request / Validation Error"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/users [post]
 func (h *UserHandler) EnrollUser(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
@@ -104,9 +127,8 @@ func (h *UserHandler) EnrollUser(w http.ResponseWriter, r *http.Request) error {
 		return fmtDBError("Failed to enroll subject in directory", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	return json.NewEncoder(w).Encode(newUser)
+	middleware.SendJSON(w, http.StatusCreated, newUser, nil)
+	return nil
 }
 
 type UpdateUserPayload struct {
@@ -118,6 +140,18 @@ type UpdateUserPayload struct {
 }
 
 // UpdateUser handles PATCH /api/v1/users/:id
+// @Summary Update user attributes
+// @Description Patch specific fields of an existing user identity.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User Reference ID"
+// @Param update body UpdateUserPayload true "Fields to update"
+// @Success 200 {object} domain.User "Updated user object"
+// @Failure 400 {object} middleware.APIError "Bad Request"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/users/{id} [patch]
 func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPatch {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
@@ -140,11 +174,23 @@ func (h *UserHandler) UpdateUser(w http.ResponseWriter, r *http.Request) error {
 		return fmtDBError("Failed to update identity record attributes", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(patchedUser)
+	middleware.SendJSON(w, http.StatusOK, patchedUser, nil)
+	return nil
 }
 
 // DeleteUser handles DELETE /api/v1/users/:id
+// @Summary Decommission a user identity
+// @Description Safely remove a user from the directory and log the decommissioning event.
+// @Tags users
+// @Accept json
+// @Produce json
+// @Param id path string true "User Reference ID"
+// @Param operator query string true "Operator performing the deletion"
+// @Success 200 {object} map[string]interface{} "Success confirmation message"
+// @Failure 400 {object} middleware.APIError "Bad Request"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/users/{id} [delete]
 func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodDelete {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
@@ -163,14 +209,25 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) error {
 		return fmtDBError("Failed to decommission identity from RDBMS pool", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"message": "Identity has been safely decommissioned.",
-	})
+	middleware.SendJSON(w, http.StatusOK, map[string]interface{}{
+		"message":           "Identity has been safely decommissioned.",
+		"decommissioned_at": time.Now(),
+	}, nil)
+	return nil
 }
 
 // ExportCSV handles GET /api/v1/export/csv
+// @Summary Export identity directory to CSV
+// @Description Generates a CSV report of the user directory with active filters.
+// @Tags export
+// @Produce text/csv
+// @Param department query string false "Filter by department"
+// @Param role query string false "Filter by role"
+// @Param status query string false "Filter by status"
+// @Success 200 {file} file "CSV File Download"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/export/csv [get]
 func (h *UserHandler) ExportCSV(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)

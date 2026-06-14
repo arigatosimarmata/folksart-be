@@ -12,13 +12,23 @@ import (
 	"time"
 )
 
-// APIError represents the standardized response structure for all error payloads
+// APIError redefined to match PRD: { "success": false, "error": { "code": "...", "message": "..." } }
 type APIError struct {
-	Status    int       `json:"status"`
-	Error     string    `json:"error"`
+	Success bool       `json:"success"`
+	Error   ErrorDetail `json:"error"`
+}
+
+type ErrorDetail struct {
+	Code      string    `json:"code"`
 	Message   string    `json:"message"`
-	Path      string    `json:"path"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+// SuccessResponse for standardized success payloads
+type SuccessResponse struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data"`
+	Meta    interface{} `json:"meta,omitempty"`
 }
 
 // CustomAppError allows handlers to declare application-specific errors with standard statuses
@@ -56,6 +66,17 @@ func Adapt(h AppHandler) http.HandlerFunc {
 	}
 }
 
+// SendJSON helper for standardized success responses
+func SendJSON(w http.ResponseWriter, status int, data interface{}, meta interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(SuccessResponse{
+		Success: true,
+		Data:    data,
+		Meta:    meta,
+	})
+}
+
 // HandleError manages unified error classification, log writing, and mapping
 func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	if err == nil {
@@ -63,7 +84,7 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	}
 
 	statusCode := http.StatusInternalServerError
-	errLabel := "Internal Server Error"
+	errCode := "INTERNAL_SERVER_ERROR"
 	customMsg := "An unexpected error occurred on the service."
 
 	// 1. Unwrap and inspect the underlying error type
@@ -71,48 +92,32 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 	if errors.As(err, &customErr) {
 		statusCode = customErr.Status
 		customMsg = customErr.Message
-		errLabel = http.StatusText(statusCode)
+		errCode = getErrorCodeFromStatus(statusCode)
 		if customErr.Err != nil {
 			log.Printf("[IAM-API] Domain error caught: %v | Context: %s", customErr.Err, customErr.Message)
 		} else {
 			log.Printf("[IAM-API] Generic domain warning caught: %s", customErr.Message)
 		}
 	} else if errors.Is(err, sql.ErrNoRows) {
-		// sql.ErrNoRows -> Resource Not Found
 		statusCode = http.StatusNotFound
-		errLabel = "Not Found"
+		errCode = "NOT_FOUND"
 		customMsg = "The requested resource could not be found in the governance directory."
 		log.Printf("[IAM-API] Database query returned no records: %v", err)
 	} else {
-		// Identify driver-level and structural database failures dynamically
 		errStr := strings.ToLower(err.Error())
-		
 		if strings.Contains(errStr, "duplicate entry") || strings.Contains(errStr, "error 1062") {
-			// MySQL Unique Key Collision
 			statusCode = http.StatusConflict
-			errLabel = "Conflict"
+			errCode = "CONFLICT"
 			customMsg = "A database unique constraint conflict occurred. A record with matching criteria already exists."
-			log.Printf("[IAM-API] Unique Constraint Collision: %v", err)
 		} else if strings.Contains(errStr, "cannot add or update a child row") || strings.Contains(errStr, "foreign key constraint fails") || strings.Contains(errStr, "error 1452") {
-			// MySQL Foreign Key Constraint Collision
-			statusCode = http.StatusBadRequest
-			errLabel = "Bad Request"
+			statusCode = http.StatusUnprocessableEntity
+			errCode = "VALIDATION_ERROR"
 			customMsg = "A relational integrity database constraint failed. Verified matching foreign reference not found."
-			log.Printf("[IAM-API] Integrity Constraint Fail: %v", err)
-		} else if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "packets.go") || strings.Contains(errStr, "bad connection") || strings.Contains(errStr, "dial tcp") {
-			// Database Host Isolation / Downtime
+		} else if strings.Contains(errStr, "connection refused") || strings.Contains(errStr, "dial tcp") {
 			statusCode = http.StatusServiceUnavailable
-			errLabel = "Service Unavailable"
+			errCode = "SERVICE_UNAVAILABLE"
 			customMsg = "The persistent database system is temporarily unavailable. Please retry shortly."
-			log.Printf("[IAM-API] RDBMS Host Connection Failure: %v", err)
-		} else if strings.Contains(errStr, "syntax error") || strings.Contains(errStr, "sql:") || strings.Contains(errStr, "mysql:") {
-			// Structural DB syntax run errors
-			statusCode = http.StatusInternalServerError
-			errLabel = "Internal Database Error"
-			customMsg = "An internal database engine query execution failure occurred."
-			log.Printf("[IAM-API] DB Query Syntax/Execution Error: %v", err)
 		} else {
-			// General system fallback
 			log.Printf("[IAM-API] Unhandled server error: %v", err)
 			customMsg = err.Error()
 		}
@@ -120,16 +125,38 @@ func HandleError(w http.ResponseWriter, r *http.Request, err error) {
 
 	// 2. Generate standardized JSON response
 	response := APIError{
-		Status:    statusCode,
-		Error:     errLabel,
-		Message:   customMsg,
-		Path:      r.URL.Path,
-		Timestamp: time.Now(),
+		Success: false,
+		Error: ErrorDetail{
+			Code:      errCode,
+			Message:   customMsg,
+			Timestamp: time.Now(),
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+func getErrorCodeFromStatus(status int) string {
+	switch status {
+	case http.StatusBadRequest:
+		return "BAD_REQUEST"
+	case http.StatusUnauthorized:
+		return "UNAUTHORIZED"
+	case http.StatusForbidden:
+		return "FORBIDDEN"
+	case http.StatusNotFound:
+		return "NOT_FOUND"
+	case http.StatusConflict:
+		return "CONFLICT"
+	case http.StatusUnprocessableEntity:
+		return "VALIDATION_ERROR"
+	case http.StatusTooManyRequests:
+		return "RATE_LIMIT_EXCEEDED"
+	default:
+		return "INTERNAL_SERVER_ERROR"
+	}
 }
 
 // RecoveryMiddleware intercepts panics, prevents service crashes, and redirects logs to central handlers

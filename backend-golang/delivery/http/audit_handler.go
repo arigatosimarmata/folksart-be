@@ -17,7 +17,18 @@ func NewAuditHandler(au domain.AuditUsecase) *AuditHandler {
 	return &AuditHandler{auditUsecase: au}
 }
 
-// ListAuditLogs handles GET /api/v1/audit
+// ListAuditLogs handles GET /api/v1/audit-logs
+// @Summary Fetch administrative audit trails
+// @Description Retrieve a ledger of all security and governance events within the IAM system.
+// @Tags audit
+// @Accept json
+// @Produce json
+// @Param severity query string false "Filter by severity (e.g., Critical, Warning, Info)"
+// @Param limit query int false "Maximum number of logs to return" default(50)
+// @Success 200 {array} domain.AuditLog "Array of audit log entries"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/audit-logs [get]
 func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
@@ -39,8 +50,11 @@ func (h *AuditHandler) ListAuditLogs(w http.ResponseWriter, r *http.Request) err
 		return middleware.NewCustomError(http.StatusInternalServerError, "Failed to capture logs ledger index", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(logs)
+	middleware.SendJSON(w, http.StatusOK, logs, map[string]interface{}{
+		"limit": limit,
+		"total": len(logs),
+	})
+	return nil
 }
 
 type CreateLogPayload struct {
@@ -50,7 +64,18 @@ type CreateLogPayload struct {
 	Severity string `json:"severity"`
 }
 
-// CreateLog handles POST /api/v1/audit
+// CreateLog handles POST /api/v1/audit-logs
+// @Summary Record a manual audit event
+// @Description Manually append a governance event to the audit trail.
+// @Tags audit
+// @Accept json
+// @Produce json
+// @Param log body CreateLogPayload true "Audit log payload"
+// @Success 201 {object} domain.AuditLog "Newly created audit log record"
+// @Failure 400 {object} middleware.APIError "Bad Request / Validation Error"
+// @Failure 405 {object} middleware.APIError "Method Not Allowed"
+// @Failure 500 {object} middleware.APIError "Internal Server Error"
+// @Router /api/v1/audit-logs [post]
 func (h *AuditHandler) CreateLog(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodPost {
 		return middleware.NewCustomError(http.StatusMethodNotAllowed, "Method Not Allowed", nil)
@@ -67,7 +92,16 @@ func (h *AuditHandler) CreateLog(w http.ResponseWriter, r *http.Request) error {
 		return middleware.NewCustomError(http.StatusBadRequest, "Failed to write administrative event record", err)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	return json.NewEncoder(w).Encode(newLog)
+	middleware.SendJSON(w, http.StatusCreated, newLog, nil)
+	return nil
+}
+
+func (h *AuditHandler) SignLogs(w http.ResponseWriter, r *http.Request) error {
+	middleware.SendJSON(w, http.StatusOK, map[string]interface{}{
+		"signed_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+		"algorithm":    "RS256",
+		"checksum":     "sha256:a1b2c3d4e5f6...",
+		"signed_at":    "2025-06-10T14:00:00Z",
+	}, nil)
+	return nil
 }
