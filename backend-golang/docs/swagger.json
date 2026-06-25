@@ -1,487 +1,173 @@
 {
-    "swagger": "2.0",
-    "info": {
-        "contact": {}
-    },
-    "paths": {
-        "/auth/login": {
-            "post": {
-                "description": "Log in with email and password to receive a JWT access token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Authenticate principal",
-                "parameters": [
-                    {
-                        "description": "Login Credentials",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.LoginRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httputil.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/dto.TokenResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized",
-                        "schema": {
-                            "$ref": "#/definitions/httputil.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/logout": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Invalidate the current access token",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Terminate session",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/httputil.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/auth/me": {
-            "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Retrieve details of the currently authenticated user",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Auth"
-                ],
-                "summary": "Get current principal info",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httputil.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/dto.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        },
-        "/users": {
-            "get": {
-                "description": "Get a paginated list of users with search and filter options",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Identity"
-                ],
-                "summary": "List all users with filtering",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Search by name or email",
-                        "name": "search",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by role",
-                        "name": "role",
-                        "in": "query"
-                    },
-                    {
-                        "type": "string",
-                        "description": "Filter by status",
-                        "name": "status",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 1,
-                        "description": "Page number",
-                        "name": "page",
-                        "in": "query"
-                    },
-                    {
-                        "type": "integer",
-                        "default": 10,
-                        "description": "Page size",
-                        "name": "limit",
-                        "in": "query"
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httputil.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "type": "array",
-                                            "items": {
-                                                "$ref": "#/definitions/dto.UserResponse"
-                                            }
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            },
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Create a new user identity in the system",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Identity"
-                ],
-                "summary": "Enroll a new principal",
-                "parameters": [
-                    {
-                        "description": "User Enrollment Data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.EnrollUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "201": {
-                        "description": "Created",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httputil.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/dto.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Bad Request",
-                        "schema": {
-                            "$ref": "#/definitions/httputil.Response"
-                        }
-                    }
-                }
-            }
-        },
-        "/users/{id}": {
-            "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Remove a user from the active directory",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Identity"
-                ],
-                "summary": "Decommission principal",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Operator ID",
-                        "name": "operator",
-                        "in": "query",
-                        "required": true
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/httputil.Response"
-                        }
-                    }
-                }
-            },
-            "patch": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Patch specific fields of a user identity",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Identity"
-                ],
-                "summary": "Update principal attributes",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "User ID",
-                        "name": "id",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Update Data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/dto.UpdateUserRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/httputil.Response"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/dto.UserResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    }
-                }
-            }
-        }
-    },
-    "definitions": {
-        "dto.EnrollUserRequest": {
-            "type": "object",
-            "required": [
-                "department",
-                "email",
-                "name",
-                "operator",
-                "role"
-            ],
-            "properties": {
-                "department": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "operator": {
-                    "type": "string"
-                },
-                "role": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.LoginRequest": {
-            "type": "object",
-            "required": [
-                "email",
-                "password"
-            ],
-            "properties": {
-                "email": {
-                    "type": "string"
-                },
-                "password": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.TokenResponse": {
-            "type": "object",
-            "properties": {
-                "access_token": {
-                    "type": "string"
-                },
-                "expires_in": {
-                    "type": "integer"
-                },
-                "token_type": {
-                    "type": "string"
-                },
-                "user": {
-                    "$ref": "#/definitions/dto.UserResponse"
-                }
-            }
-        },
-        "dto.UpdateUserRequest": {
-            "type": "object",
-            "required": [
-                "operator"
-            ],
-            "properties": {
-                "kyc_status": {
-                    "type": "string"
-                },
-                "mfa_enabled": {
-                    "type": "boolean"
-                },
-                "operator": {
-                    "type": "string"
-                },
-                "risk_score": {
-                    "type": "integer"
-                },
-                "status": {
-                    "type": "string"
-                }
-            }
-        },
-        "dto.UserResponse": {
-            "type": "object",
-            "properties": {
-                "created_at": {
-                    "type": "string"
-                },
-                "department": {
-                    "type": "string"
-                },
-                "email": {
-                    "type": "string"
-                },
-                "id": {
-                    "type": "string"
-                },
-                "kyc_status": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "risk_score": {
-                    "type": "integer"
-                },
-                "role": {
-                    "type": "string"
-                },
-                "status": {
-                    "type": "string"
-                },
-                "username": {
-                    "type": "string"
-                }
-            }
-        },
-        "httputil.Response": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string"
-                },
-                "data": {},
-                "message": {
-                    "type": "string"
-                },
-                "meta": {}
-            }
-        }
+  "openapi": "3.0.0",
+  "info": {
+    "title": "IAM Governance API",
+    "description": "Standardized Identity and Access Management governance endpoints for corporate directory monitoring and audit trailing.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "IAM Core Team",
+      "email": "iam-governance@corporate.local"
     }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Primary Production Proxy"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "tags": ["users"],
+        "summary": "List all user identity entries",
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Search by name or email" },
+          { "name": "role", "in": "query", "schema": { "type": "string" }, "description": "Filter by role" },
+          { "name": "status", "in": "query", "schema": { "type": "string" }, "description": "Filter by status" },
+          { "name": "department", "in": "query", "schema": { "type": "string" }, "description": "Filter by department" },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated list of users", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UserList" } } } }
+        }
+      },
+      "post": {
+        "tags": ["users"],
+        "summary": "Enroll a new user identity",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/EnrollRequest" } } } },
+        "responses": {
+          "201": { "description": "User created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IAMUser" } } } }
+        }
+      }
+    },
+    "/users/{id}": {
+      "patch": {
+        "tags": ["users"],
+        "summary": "Update user attributes",
+        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/UpdateUserPayload" } } } },
+        "responses": {
+          "200": { "description": "User updated", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/IAMUser" } } } }
+        }
+      },
+      "delete": {
+        "tags": ["users"],
+        "summary": "Decommission a user identity",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "operator", "in": "query", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "User deleted", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "message": { "type": "string" } } } } } }
+        }
+      }
+    },
+    "/audit-logs": {
+      "get": {
+        "tags": ["audit"],
+        "summary": "Fetch administrative audit trails",
+        "parameters": [
+          { "name": "severity", "in": "query", "schema": { "type": "string" } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": {
+          "200": { "description": "Array of audit logs", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/AuditLog" } } } } }
+        }
+      },
+      "post": {
+        "tags": ["audit"],
+        "summary": "Record a manual audit event",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateLogPayload" } } } },
+        "responses": {
+          "201": { "description": "Log created", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AuditLog" } } } }
+        }
+      }
+    },
+    "/export/csv": {
+      "get": {
+        "tags": ["export"],
+        "summary": "Export identity directory to CSV",
+        "responses": {
+          "200": { "description": "CSV byte stream" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "IAMUser": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string" },
+          "phone": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string" },
+          "kycStatus": { "type": "string" },
+          "department": { "type": "string" },
+          "riskScore": { "type": "integer" },
+          "mfaEnabled": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "UserList": {
+        "type": "object",
+        "properties": {
+          "users": { "type": "array", "items": { "$ref": "#/components/schemas/IAMUser" } },
+          "pagination": {
+            "type": "object",
+            "properties": {
+              "total": { "type": "integer" },
+              "page": { "type": "integer" },
+              "limit": { "type": "integer" },
+              "pages": { "type": "integer" }
+            }
+          }
+        }
+      },
+      "EnrollRequest": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string" },
+          "email": { "type": "string" },
+          "role": { "type": "string" },
+          "department": { "type": "string" },
+          "operator": { "type": "string" }
+        }
+      },
+      "UpdateUserPayload": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string" },
+          "kycStatus": { "type": "string" },
+          "riskScore": { "type": "integer" },
+          "mfaEnabled": { "type": "boolean" },
+          "operator": { "type": "string" }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "actor": { "type": "string" },
+          "action": { "type": "string" },
+          "target": { "type": "string" },
+          "severity": { "type": "string" }
+        }
+      },
+      "CreateLogPayload": {
+        "type": "object",
+        "properties": {
+          "actor": { "type": "string" },
+          "action": { "type": "string" },
+          "target": { "type": "string" },
+          "severity": { "type": "string" }
+        }
+      }
+    }
+  }
 }
