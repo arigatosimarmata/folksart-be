@@ -1,22 +1,20 @@
 package cmd
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
-	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/spf13/cobra"
 	"react-example/backend-golang/config"
 	"react-example/backend-golang/internal/handlers"
-	customLogger "react-example/backend-golang/internal/logger"
 	"react-example/backend-golang/internal/repositories"
 	"react-example/backend-golang/internal/usecases"
-	"react-example/backend-golang/middleware"
 	"react-example/backend-golang/routes"
 )
 
@@ -51,15 +49,7 @@ func init() {
 // @name Authorization
 
 func runFiberServer() {
-	// Initialize custom Zap logger
-	customLogger.InitLogger()
-	if customLogger.Log != nil {
-		defer func() {
-			_ = customLogger.Log.Sync()
-		}()
-	}
-
-	customLogger.Log.Info("[IAM-CORE] Bootstrapping Identity Governance Suite via Fiber...")
+	log.Println("[IAM-CORE] Bootstrapping Identity Governance Suite via Fiber...")
 
 	db := config.InitDB()
 	defer db.Close()
@@ -96,13 +86,7 @@ func runFiberServer() {
 
 	// Middleware
 	app.Use(recover.New())
-	app.Use(middleware.RequestID())
-	app.Use(fiberLogger.New(fiberLogger.Config{
-		Format:     `{"time":"${time}","status":${status},"latency":"${latency}","method":"${method}","path":"${path}","request_id":"${respHeader:X-Request-ID}","error":"${error}"}` + "\n",
-		TimeFormat: "2006-01-02 15:04:05",
-		TimeZone:   "Local",
-		Output:     customLogger.LogWriter,
-	}))
+	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PATCH,DELETE,OPTIONS",
@@ -120,13 +104,13 @@ func runFiberServer() {
 
 	go func() {
 		if err := app.Listen("0.0.0.0:" + port); err != nil {
-			customLogger.Log.Fatal(fmt.Sprintf("[IAM-CORE] CRITICAL: Server crashed: %v", err))
+			log.Fatalf("[IAM-CORE] CRITICAL: Server crashed: %v", err)
 		}
 	}()
 
 	<-shutdownSignal
-	customLogger.Log.Info("[IAM-CORE] Received shutdown signal, commencing graceful shutdown...")
+	log.Printf("[IAM-CORE] Received shutdown signal, commencing graceful shutdown...")
 	if err := app.Shutdown(); err != nil {
-		customLogger.Log.Error(fmt.Sprintf("[IAM-CORE] Error during shutdown: %v", err))
+		log.Printf("[IAM-CORE] Error during shutdown: %v", err)
 	}
 }

@@ -6,7 +6,3 @@ coverage/
 *.log
 .env*
 !.env.example
-.pat
-backend-golang/backend-golang
-logs/
-backend-golang/logs/
