@@ -3,7 +3,6 @@ package config
 import (
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/spf13/viper"
 )
@@ -65,28 +64,3 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-
-func getEnvBool(key string, defaultValue bool) bool {
-	valStr := getEnv(key, "")
-	if valStr == "" {
-		return defaultValue
-	}
-	val, err := strconv.ParseBool(valStr)
-	if err != nil {
-		return defaultValue
-	}
-	return val
-}
-
-func getEnvInt(key string, defaultValue int) int {
-	valStr := getEnv(key, "")
-	if valStr == "" {
-		return defaultValue
-	}
-	val, err := strconv.Atoi(valStr)
-	if err != nil {
-		return defaultValue
-	}
-	return val
-}
-
