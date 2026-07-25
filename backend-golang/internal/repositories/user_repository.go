@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"react-example/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/domain"
 )
 
 type mysqlUserRepository struct {
@@ -18,10 +18,10 @@ func NewUserRepository(db *sql.DB) domain.UserRepository {
 }
 
 func (r *mysqlUserRepository) GetByID(ctx context.Context, id string) (*domain.IAMUser, error) {
-	query := `SELECT id, name, username, email, phone, role, status, kyc_status, department, risk_score, mfa_enabled, created_at FROM iam_users WHERE id = ?`
+	query := `SELECT id, name, username, email, phone, role, status, kyc_status, department, risk_score, mfa_enabled, user_type, tenant_id, is_verified, created_at FROM iam_users WHERE id = ?`
 	var u domain.IAMUser
 	err := r.db.QueryRowContext(ctx, query, id).Scan(
-		&u.ID, &u.Name, &u.Username, &u.Email, &u.Phone, &u.Role, &u.Status, &u.KYCStatus, &u.Department, &u.RiskScore, &u.MFAEnabled, &u.CreatedAt,
+		&u.ID, &u.Name, &u.Username, &u.Email, &u.Phone, &u.Role, &u.Status, &u.KYCStatus, &u.Department, &u.RiskScore, &u.MFAEnabled, &u.UserType, &u.TenantID, &u.IsVerified, &u.CreatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -53,6 +53,14 @@ func (r *mysqlUserRepository) List(ctx context.Context, filter domain.UserFilter
 		conditions = append(conditions, "department = ?")
 		args = append(args, filter.Department)
 	}
+	if filter.UserType != "" {
+		conditions = append(conditions, "user_type = ?")
+		args = append(args, filter.UserType)
+	}
+	if filter.TenantID != "" {
+		conditions = append(conditions, "tenant_id = ?")
+		args = append(args, filter.TenantID)
+	}
 
 	whereClause := ""
 	if len(conditions) > 0 {
@@ -72,7 +80,7 @@ func (r *mysqlUserRepository) List(ctx context.Context, filter domain.UserFilter
 		args = append(args, filter.Limit, filter.Offset)
 	}
 
-	fetchQuery := fmt.Sprintf("SELECT id, name, username, email, phone, role, status, kyc_status, department, risk_score, mfa_enabled, created_at FROM iam_users %s ORDER BY created_at DESC%s", whereClause, limitOffsetClause)
+	fetchQuery := fmt.Sprintf("SELECT id, name, username, email, phone, role, status, kyc_status, department, risk_score, mfa_enabled, user_type, tenant_id, is_verified, created_at FROM iam_users %s ORDER BY created_at DESC%s", whereClause, limitOffsetClause)
 	rows, err := r.db.QueryContext(ctx, fetchQuery, args...)
 	if err != nil {
 		return nil, 0, err
@@ -83,7 +91,7 @@ func (r *mysqlUserRepository) List(ctx context.Context, filter domain.UserFilter
 	for rows.Next() {
 		var u domain.IAMUser
 		err := rows.Scan(
-			&u.ID, &u.Name, &u.Username, &u.Email, &u.Phone, &u.Role, &u.Status, &u.KYCStatus, &u.Department, &u.RiskScore, &u.MFAEnabled, &u.CreatedAt,
+			&u.ID, &u.Name, &u.Username, &u.Email, &u.Phone, &u.Role, &u.Status, &u.KYCStatus, &u.Department, &u.RiskScore, &u.MFAEnabled, &u.UserType, &u.TenantID, &u.IsVerified, &u.CreatedAt,
 		)
 		if err != nil {
 			return nil, 0, err
@@ -95,14 +103,14 @@ func (r *mysqlUserRepository) List(ctx context.Context, filter domain.UserFilter
 }
 
 func (r *mysqlUserRepository) Store(ctx context.Context, u *domain.IAMUser) error {
-	query := `INSERT INTO iam_users (id, name, username, email, phone, role, status, kyc_status, department, risk_score, mfa_enabled, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, u.ID, u.Name, u.Username, u.Email, u.Phone, u.Role, u.Status, u.KYCStatus, u.Department, u.RiskScore, u.MFAEnabled, u.CreatedAt)
+	query := `INSERT INTO iam_users (id, name, username, email, phone, role, status, kyc_status, department, risk_score, mfa_enabled, user_type, tenant_id, is_verified, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	_, err := r.db.ExecContext(ctx, query, u.ID, u.Name, u.Username, u.Email, u.Phone, u.Role, u.Status, u.KYCStatus, u.Department, u.RiskScore, u.MFAEnabled, u.UserType, u.TenantID, u.IsVerified, u.CreatedAt)
 	return err
 }
 
 func (r *mysqlUserRepository) Update(ctx context.Context, u *domain.IAMUser) error {
-	query := `UPDATE iam_users SET name = ?, email = ?, role = ?, status = ?, kyc_status = ?, department = ?, risk_score = ?, mfa_enabled = ? WHERE id = ?`
-	_, err := r.db.ExecContext(ctx, query, u.Name, u.Email, u.Role, u.Status, u.KYCStatus, u.Department, u.RiskScore, u.MFAEnabled, u.ID)
+	query := `UPDATE iam_users SET name = ?, email = ?, role = ?, status = ?, kyc_status = ?, department = ?, risk_score = ?, mfa_enabled = ?, user_type = ?, tenant_id = ?, is_verified = ? WHERE id = ?`
+	_, err := r.db.ExecContext(ctx, query, u.Name, u.Email, u.Role, u.Status, u.KYCStatus, u.Department, u.RiskScore, u.MFAEnabled, u.UserType, u.TenantID, u.IsVerified, u.ID)
 	return err
 }
 

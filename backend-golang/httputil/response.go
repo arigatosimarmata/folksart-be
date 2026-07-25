@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gofiber/fiber/v2"
-	"react-example/backend-golang/errs"
+	"folksart-be/backend-golang/errs"
 )
 
 type Response struct {

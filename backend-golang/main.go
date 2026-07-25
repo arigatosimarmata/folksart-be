@@ -1,7 +1,7 @@
 package main
 
 import (
-	"react-example/backend-golang/cmd"
+	"folksart-be/backend-golang/cmd"
 )
 
 func main() {

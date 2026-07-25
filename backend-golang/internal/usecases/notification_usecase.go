@@ -2,7 +2,7 @@ package usecases
 
 import (
 	"context"
-	"react-example/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/domain"
 )
 
 type nfUsecase struct{}

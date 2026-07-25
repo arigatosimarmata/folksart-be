@@ -22,6 +22,8 @@ type Config struct {
 	LogToFile        bool
 	LogRetentionDays int
 	LogLevel         string
+	JWTSecretKey     string
+	CORSAllowedOrigins string
 }
 
 var AppConfig Config
@@ -49,6 +51,8 @@ func LoadConfig() {
 		LogToFile:        getEnvBool("LOG_TO_FILE", true),
 		LogRetentionDays: getEnvInt("LOG_RETENTION_DAYS", 21),
 		LogLevel:         getEnv("LOG_LEVEL", "info"),
+		JWTSecretKey:     getEnv("JWT_SECRET_KEY", "default_secret_key_for_development_only"),
+		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "*"),
 	}
 }
 

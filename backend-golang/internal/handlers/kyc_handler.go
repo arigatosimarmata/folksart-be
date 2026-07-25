@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"github.com/gofiber/fiber/v2"
-	"react-example/backend-golang/httputil"
-	"react-example/backend-golang/internal/domain"
-	"react-example/backend-golang/internal/dto"
+	"folksart-be/backend-golang/httputil"
+	"folksart-be/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/dto"
 )
 
 type KYCHandler struct {

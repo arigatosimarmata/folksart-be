@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"react-example/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/domain"
 )
 
 type mysqlAuditRepository struct {

@@ -1,4 +1,4 @@
-module react-example/backend-golang
+module folksart-be/backend-golang
 
 go 1.21
 

@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"time"
 
-	"react-example/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/domain"
 )
 
 type auditUsecase struct {

@@ -11,13 +11,13 @@ import (
 	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/spf13/cobra"
-	"react-example/backend-golang/config"
-	"react-example/backend-golang/internal/handlers"
-	customLogger "react-example/backend-golang/internal/logger"
-	"react-example/backend-golang/internal/repositories"
-	"react-example/backend-golang/internal/usecases"
-	"react-example/backend-golang/middleware"
-	"react-example/backend-golang/routes"
+	"folksart-be/backend-golang/config"
+	"folksart-be/backend-golang/internal/handlers"
+	customLogger "folksart-be/backend-golang/internal/logger"
+	"folksart-be/backend-golang/internal/repositories"
+	"folksart-be/backend-golang/internal/usecases"
+	"folksart-be/backend-golang/middleware"
+	"folksart-be/backend-golang/routes"
 )
 
 var serveCmd = &cobra.Command{
@@ -104,7 +104,7 @@ func runFiberServer() {
 		Output:     customLogger.LogWriter,
 	}))
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
+		AllowOrigins: config.AppConfig.CORSAllowedOrigins,
 		AllowMethods: "GET,POST,PATCH,DELETE,OPTIONS",
 		AllowHeaders: "Content-Type, Authorization",
 	}))

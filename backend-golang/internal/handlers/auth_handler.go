@@ -4,9 +4,9 @@ import (
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
-	"react-example/backend-golang/httputil"
-	"react-example/backend-golang/internal/domain"
-	"react-example/backend-golang/internal/dto"
+	"folksart-be/backend-golang/httputil"
+	"folksart-be/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/dto"
 )
 
 type AuthHandler struct {
@@ -45,21 +45,43 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	}
 
 	if resp.User != nil {
-		dtoResp.User = &dto.UserResponse{
-			ID:         resp.User.ID,
-			Name:       resp.User.Name,
-			Username:   resp.User.Username,
-			Email:      resp.User.Email,
-			Role:       resp.User.Role,
-			Status:     resp.User.Status,
-			KYCStatus:  resp.User.KYCStatus,
-			Department: resp.User.Department,
-			RiskScore:  resp.User.RiskScore,
-			CreatedAt:  resp.User.CreatedAt.Format("2006-01-02 15:04:05"),
-		}
+		dtoResp.User = toUserDTO(resp.User)
 	}
 
 	return httputil.WriteSuccessResponse(c, "Login successful", dtoResp, nil)
+}
+
+// RegisterCustomer godoc
+// @Summary Customer CIAM self-service enrollment
+// @Description Register a new external customer identity and get token
+// @Tags Auth
+// @Accept json
+// @Produce json
+// @Param request body dto.RegisterCustomerRequest true "Customer Registration Data"
+// @Success 201 {object} httputil.Response{data=dto.TokenResponse}
+// @Failure 400 {object} httputil.Response
+// @Router /auth/register [post]
+func (h *AuthHandler) RegisterCustomer(c *fiber.Ctx) error {
+	var req dto.RegisterCustomerRequest
+	if err := c.BodyParser(&req); err != nil {
+		return httputil.WriteErrorResponse(c, err)
+	}
+	if req.Name == "" || req.Email == "" || req.Password == "" {
+		return httputil.WriteErrorResponse(c, fiber.NewError(fiber.StatusBadRequest, "Name, email, and password are required"))
+	}
+	resp, err := h.authUsecase.RegisterCustomer(c.Context(), req.Name, req.Email, req.Password, req.Phone)
+	if err != nil {
+		return httputil.WriteErrorResponse(c, err)
+	}
+	dtoResp := dto.TokenResponse{
+		AccessToken: resp.AccessToken,
+		TokenType:   resp.TokenType,
+		ExpiresIn:   resp.ExpiresIn,
+	}
+	if resp.User != nil {
+		dtoResp.User = toUserDTO(resp.User)
+	}
+	return httputil.WriteSuccessResponse(c, "Customer registration successful", dtoResp, nil)
 }
 
 // Logout godoc
@@ -97,20 +119,7 @@ func (h *AuthHandler) Me(c *fiber.Ctx) error {
 		return httputil.WriteErrorResponse(c, err)
 	}
 
-	res := dto.UserResponse{
-		ID:         user.ID,
-		Name:       user.Name,
-		Username:   user.Username,
-		Email:      user.Email,
-		Role:       user.Role,
-		Status:     user.Status,
-		KYCStatus:  user.KYCStatus,
-		Department: user.Department,
-		RiskScore:  user.RiskScore,
-		CreatedAt:  user.CreatedAt.Format("2006-01-02 15:04:05"),
-	}
-
-	return httputil.WriteSuccessResponse(c, "Success", res, nil)
+	return httputil.WriteSuccessResponse(c, "Success", toUserDTO(user), nil)
 }
 
 func (h *AuthHandler) Sessions(c *fiber.Ctx) error {
@@ -137,16 +146,16 @@ func (h *AuthHandler) Sessions(c *fiber.Ctx) error {
 
 func (h *AuthHandler) InternalToken(c *fiber.Ctx) error {
 	return httputil.WriteSuccessResponse(c, "Internal token generated", map[string]interface{}{
-		"access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
-		"token_type":   "Bearer",
-		"expires_in":   3600,
-		"issued_to":    "reporting-service",
+		"accessToken": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...",
+		"tokenType":   "Bearer",
+		"expiresIn":   3600,
+		"issuedTo":    "reporting-service",
 	}, nil)
 }
 
 func (h *AuthHandler) VerifyInternalToken(c *fiber.Ctx) error {
 	return httputil.WriteSuccessResponse(c, "Token verified", map[string]interface{}{
-		"valid":     true,
-		"issued_to": "reporting-service",
+		"valid":    true,
+		"issuedTo": "reporting-service",
 	}, nil)
 }

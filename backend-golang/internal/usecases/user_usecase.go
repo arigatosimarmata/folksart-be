@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"react-example/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/domain"
 )
 
 type userUsecase struct {
@@ -53,6 +53,9 @@ func (u *userUsecase) EnrollPrincipal(ctx context.Context, name, email, role, de
 		Department: department,
 		RiskScore:  riskScore,
 		MFAEnabled: false,
+		UserType:   "workforce",
+		TenantID:   "internal-org",
+		IsVerified: true,
 		CreatedAt:  createdAt,
 	}
 

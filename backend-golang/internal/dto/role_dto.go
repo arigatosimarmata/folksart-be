@@ -5,7 +5,7 @@ type RoleResponse struct {
 	Name        string   `json:"name"`
 	Description string   `json:"description"`
 	Permissions []string `json:"permissions"`
-	UserCount   int      `json:"user_count"`
+	UserCount   int      `json:"userCount"`
 }
 
 type CreateRoleRequest struct {
@@ -21,6 +21,6 @@ type PermissionResponse struct {
 }
 
 type AssignRoleRequest struct {
-	RoleID   string `json:"role_id" validate:"required"`
+	RoleID   string `json:"roleId" validate:"required"`
 	Operator string `json:"operator" validate:"required"`
 }

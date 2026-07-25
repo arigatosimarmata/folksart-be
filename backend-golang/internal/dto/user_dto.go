@@ -7,10 +7,13 @@ type UserResponse struct {
 	Email      string `json:"email"`
 	Role       string `json:"role"`
 	Status     string `json:"status"`
-	KYCStatus  string `json:"kyc_status"`
+	KYCStatus  string `json:"kycStatus"`
 	Department string `json:"department"`
-	RiskScore  int    `json:"risk_score"`
-	CreatedAt  string `json:"created_at"`
+	RiskScore  int    `json:"riskScore"`
+	UserType   string `json:"userType"`
+	TenantID   string `json:"tenantId"`
+	IsVerified bool   `json:"isVerified"`
+	CreatedAt  string `json:"createdAt"`
 }
 
 type EnrollUserRequest struct {
@@ -23,8 +26,8 @@ type EnrollUserRequest struct {
 
 type UpdateUserRequest struct {
 	Status     *string `json:"status"`
-	KYCStatus  *string `json:"kyc_status"`
-	RiskScore  *int    `json:"risk_score"`
-	MFAEnabled *bool   `json:"mfa_enabled"`
+	KYCStatus  *string `json:"kycStatus"`
+	RiskScore  *int    `json:"riskScore"`
+	MFAEnabled *bool   `json:"mfaEnabled"`
 	Operator   string  `json:"operator" validate:"required"`
 }

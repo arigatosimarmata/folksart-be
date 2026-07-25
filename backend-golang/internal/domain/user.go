@@ -17,6 +17,9 @@ type IAMUser struct {
 	Department  string
 	RiskScore   int
 	MFAEnabled  bool
+	UserType    string
+	TenantID    string
+	IsVerified  bool
 	CreatedAt   time.Time
 }
 
@@ -25,6 +28,8 @@ type UserFilter struct {
 	Role       string
 	Status     string
 	Department string
+	UserType   string
+	TenantID   string
 	Limit      int
 	Offset     int
 }

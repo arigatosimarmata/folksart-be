@@ -8,7 +8,7 @@ type PolicyResponse struct {
 	Action      string      `json:"action"`
 	Priority    int         `json:"priority"`
 	Active      bool        `json:"active"`
-	CreatedAt   string      `json:"created_at"`
+	CreatedAt   string      `json:"createdAt"`
 }
 
 type CreatePolicyRequest struct {
@@ -21,15 +21,15 @@ type CreatePolicyRequest struct {
 }
 
 type PolicyEvaluationResponse struct {
-	UserID        string          `json:"user_id"`
+	UserID        string          `json:"userId"`
 	Resource      string          `json:"resource"`
 	Action        string          `json:"action"`
 	Decision      string          `json:"decision"`
-	MatchedPolicy *PolicyResponse `json:"matched_policy,omitempty"`
+	MatchedPolicy *PolicyResponse `json:"matchedPolicy,omitempty"`
 }
 
 type EvaluatePolicyRequest struct {
-	UserID   string `json:"user_id" validate:"required"`
+	UserID   string `json:"userId" validate:"required"`
 	Resource string `json:"resource" validate:"required"`
 	Action   string `json:"action" validate:"required"`
 }

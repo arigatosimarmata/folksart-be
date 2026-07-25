@@ -3,7 +3,7 @@ package middleware
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
-	"react-example/backend-golang/internal/ctxutil"
+	"folksart-be/backend-golang/internal/ctxutil"
 )
 
 // RequestID returns a middleware that injects a request ID into the request context and headers.

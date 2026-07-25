@@ -24,6 +24,7 @@ type Session struct {
 
 type AuthUsecase interface {
 	Login(ctx context.Context, email, password string) (*TokenResponse, error)
+	RegisterCustomer(ctx context.Context, name, email, password, phone string) (*TokenResponse, error)
 	Logout(ctx context.Context, token string) error
 	Refresh(ctx context.Context, token string) (*TokenResponse, error)
 	Me(ctx context.Context, token string) (*IAMUser, error)

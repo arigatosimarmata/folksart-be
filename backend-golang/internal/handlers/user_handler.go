@@ -4,11 +4,11 @@ import (
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
-	"react-example/backend-golang/errs"
-	"react-example/backend-golang/httputil"
-	"react-example/backend-golang/internal/domain"
-	"react-example/backend-golang/internal/dto"
-	"react-example/backend-golang/internal/validation"
+	"folksart-be/backend-golang/errs"
+	"folksart-be/backend-golang/httputil"
+	"folksart-be/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/dto"
+	"folksart-be/backend-golang/internal/validation"
 )
 
 type UserHandler struct {
@@ -60,18 +60,9 @@ func (h *UserHandler) ListUsers(c *fiber.Ctx) error {
 
 	userDtos := make([]dto.UserResponse, 0)
 	for _, u := range users {
-		userDtos = append(userDtos, dto.UserResponse{
-			ID:         u.ID,
-			Name:       u.Name,
-			Username:   u.Username,
-			Email:      u.Email,
-			Role:       u.Role,
-			Status:     u.Status,
-			KYCStatus:  u.KYCStatus,
-			Department: u.Department,
-			RiskScore:  u.RiskScore,
-			CreatedAt:  u.CreatedAt.Format("2006-01-02 15:04:05"),
-		})
+		if uDto := toUserDTO(&u); uDto != nil {
+			userDtos = append(userDtos, *uDto)
+		}
 	}
 
 	totalPages := (total + limit - 1) / limit
@@ -110,20 +101,7 @@ func (h *UserHandler) EnrollUser(c *fiber.Ctx) error {
 		return httputil.WriteErrorResponse(c, err)
 	}
 
-	res := dto.UserResponse{
-		ID:         newUser.ID,
-		Name:       newUser.Name,
-		Username:   newUser.Username,
-		Email:      newUser.Email,
-		Role:       newUser.Role,
-		Status:     newUser.Status,
-		KYCStatus:  newUser.KYCStatus,
-		Department: newUser.Department,
-		RiskScore:  newUser.RiskScore,
-		CreatedAt:  newUser.CreatedAt.Format("2006-01-02 15:04:05"),
-	}
-
-	return httputil.WriteSuccessResponse(c, "User enrolled successfully", res, nil)
+	return httputil.WriteSuccessResponse(c, "User enrolled successfully", toUserDTO(newUser), nil)
 }
 
 // UpdateUser godoc
@@ -153,20 +131,7 @@ func (h *UserHandler) UpdateUser(c *fiber.Ctx) error {
 		return httputil.WriteErrorResponse(c, err)
 	}
 
-	res := dto.UserResponse{
-		ID:         patchedUser.ID,
-		Name:       patchedUser.Name,
-		Username:   patchedUser.Username,
-		Email:      patchedUser.Email,
-		Role:       patchedUser.Role,
-		Status:     patchedUser.Status,
-		KYCStatus:  patchedUser.KYCStatus,
-		Department: patchedUser.Department,
-		RiskScore:  patchedUser.RiskScore,
-		CreatedAt:  patchedUser.CreatedAt.Format("2006-01-02 15:04:05"),
-	}
-
-	return httputil.WriteSuccessResponse(c, "User updated successfully", res, nil)
+	return httputil.WriteSuccessResponse(c, "User updated successfully", toUserDTO(patchedUser), nil)
 }
 
 // DeleteUser godoc

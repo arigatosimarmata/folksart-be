@@ -3,7 +3,7 @@ package usecases
 import (
 	"context"
 	"time"
-	"react-example/backend-golang/internal/domain"
+	"folksart-be/backend-golang/internal/domain"
 )
 
 type arUsecase struct{}

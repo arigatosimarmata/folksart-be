@@ -8,7 +8,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/database/mysql"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/spf13/cobra"
-	"react-example/backend-golang/config"
+	"folksart-be/backend-golang/config"
 )
 
 var migrateCmd = &cobra.Command{

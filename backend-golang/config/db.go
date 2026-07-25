@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
-	"os"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -25,8 +24,6 @@ func getDSN() string {
 // InitDB initializes the MySQL connection pool
 func InitDB() *sql.DB {
 	dsn := getDSN()
-	host := getEnv("DB_HOST", "127.0.0.1")
-	port := getEnv("DB_PORT", "3306")
 
 	var db *sql.DB
 	var err error

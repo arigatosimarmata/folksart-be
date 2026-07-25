@@ -4,7 +4,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"react-example/backend-golang/config"
+	"folksart-be/backend-golang/config"
 )
 
 var rootCmd = &cobra.Command{

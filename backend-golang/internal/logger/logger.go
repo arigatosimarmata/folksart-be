@@ -10,8 +10,8 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"react-example/backend-golang/config"
-	"react-example/backend-golang/internal/ctxutil"
+	"folksart-be/backend-golang/config"
+	"folksart-be/backend-golang/internal/ctxutil"
 )
 
 var Log *zap.Logger

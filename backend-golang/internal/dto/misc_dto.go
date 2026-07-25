@@ -2,23 +2,23 @@ package dto
 
 type AccessRequestResponse struct {
 	ID             string  `json:"id"`
-	RequesterID    string  `json:"requester_id"`
-	RequesterName  string  `json:"requester_name"`
+	RequesterID    string  `json:"requesterId"`
+	RequesterName  string  `json:"requesterName"`
 	Resource       string  `json:"resource"`
-	AccessLevel    string  `json:"access_level"`
+	AccessLevel    string  `json:"accessLevel"`
 	Justification  string  `json:"justification"`
 	Status         string  `json:"status"`
-	RequestedAt    string  `json:"requested_at"`
-	ApprovedBy     *string `json:"approved_by,omitempty"`
-	ApprovedAt     *string `json:"approved_at,omitempty"`
-	ExpiresAt      *string `json:"expires_at,omitempty"`
+	RequestedAt    string  `json:"requestedAt"`
+	ApprovedBy     *string `json:"approvedBy,omitempty"`
+	ApprovedAt     *string `json:"approvedAt,omitempty"`
+	ExpiresAt      *string `json:"expiresAt,omitempty"`
 }
 
 type CreateAccessRequest struct {
-	RequesterID   string `json:"requester_id" validate:"required"`
-	RequesterName string `json:"requester_name" validate:"required"`
+	RequesterID   string `json:"requesterId" validate:"required"`
+	RequesterName string `json:"requesterName" validate:"required"`
 	Resource      string `json:"resource" validate:"required"`
-	AccessLevel   string `json:"access_level" validate:"required"`
+	AccessLevel   string `json:"accessLevel" validate:"required"`
 	Justification string `json:"justification"`
 }
 
@@ -39,7 +39,7 @@ type NotificationRuleResponse struct {
 	Severity  string   `json:"severity"`
 	Channels  []string `json:"channels"`
 	Active    bool     `json:"active"`
-	CreatedAt string   `json:"created_at"`
+	CreatedAt string   `json:"createdAt"`
 }
 
 type CreateNotificationRuleRequest struct {
@@ -57,5 +57,5 @@ type NotificationResponse struct {
 	Body      string `json:"body"`
 	Severity  string `json:"severity"`
 	Read      bool   `json:"read"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt string `json:"createdAt"`
 }

@@ -3,17 +3,17 @@ package dto
 type KYCDocumentDTO struct {
 	Type       string `json:"type"`
 	Status     string `json:"status"`
-	UploadedAt string `json:"uploaded_at"`
+	UploadedAt string `json:"uploadedAt"`
 }
 
 type KYCStatusResponse struct {
-	UserID          string           `json:"user_id"`
-	Status          string           `json:"kyc_status"`
-	SubmittedAt     *string          `json:"submitted_at,omitempty"`
-	ReviewedBy      *string          `json:"reviewed_by,omitempty"`
-	ReviewedAt      *string          `json:"reviewed_at,omitempty"`
+	UserID          string           `json:"userId"`
+	Status          string           `json:"kycStatus"`
+	SubmittedAt     *string          `json:"submittedAt,omitempty"`
+	ReviewedBy      *string          `json:"reviewedBy,omitempty"`
+	ReviewedAt      *string          `json:"reviewedAt,omitempty"`
 	Documents       []KYCDocumentDTO `json:"documents"`
-	RejectionReason *string          `json:"rejection_reason,omitempty"`
+	RejectionReason *string          `json:"rejectionReason,omitempty"`
 }
 
 type KYCReviewRequest struct {
